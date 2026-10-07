@@ -29,6 +29,10 @@
   .masthead-inner{max-width:1100px; margin:0 auto; position:relative; z-index:1;}
   .brand-row{display:flex; align-items:center; gap:12px; margin-bottom:24px; opacity:0.92;}
   .brand-mark{width:30px; height:30px; border-radius:8px; background:var(--teal); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--navy); font-size:15px;}
+  .view-switch{margin-left:auto; display:flex; align-items:center; gap:8px;}
+  .view-switch .view-label{font-size:11px; opacity:0.65;}
+  .view-switch select{background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:4px 8px; font:inherit; font-size:12px; font-weight:600; cursor:pointer;}
+  .view-switch select option{color:#000;}
   .brand-row span{font-weight:600; letter-spacing:0.02em; font-size:14px; text-transform:uppercase; opacity:0.85;}
   .doc-title{font-size:34px; font-weight:800; margin:0 0 6px; color:#fff;}
   .doc-subtitle{font-size:16px; opacity:0.85; margin:0 0 24px; max-width:720px; color:#fff;}
@@ -46,7 +50,9 @@
   nav.toc .toc-heading{font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray); margin:18px 0 4px 10px;}
   nav.toc .toc-count{font-size:11px; color:var(--gray);}
   nav.toc a.done .toc-count{color:var(--green); font-weight:700;}
-  main{padding:28px 40px 80px; max-width:960px;}
+  main{padding:28px 40px 80px; max-width:960px; min-width:0;}
+  .layout > *{min-width:0;}
+  @media (max-width:640px){main{padding:20px 16px 60px;}}
 
   .callout{border-radius:var(--radius); padding:16px 20px; margin:0 0 20px; border:1px solid var(--info-border); background:var(--info-bg); font-size:14px; color:#1e3a6e;}
   .callout strong{color:var(--navy);} .callout p{margin:6px 0 0; color:inherit;}
@@ -66,6 +72,12 @@
   .btn:hover{background:var(--blue-mid);}
   .btn.secondary{background:#fff; color:var(--blue);} .btn.secondary:hover{background:var(--info-bg);}
   .btn.small{padding:4px 10px; font-size:12px;}
+  .tool-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin:0 0 16px;}
+  .tool-card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; font-size:13.5px; color:var(--ink-soft);}
+  .tool-card h3{margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--blue-mid);}
+  .tool-card .bar-actions{margin-top:10px;}
+  .tool-card.reviewer-card{border-color:#DDD3FA; background:#FAF8FF;}
+  .tool-card.reviewer-card h3{color:#5B34B8;}
   .restore-banner{display:none; background:var(--info-bg); border:1px solid var(--info-border); color:#1e3a6e; border-radius:var(--radius); padding:12px 18px; margin:0 0 16px; font-size:13.5px; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
   .restore-banner.show{display:flex;}
   .fallback{display:none; background:var(--amber-bg); border:1px solid var(--amber-border); color:var(--amber); border-radius:var(--radius); padding:10px 16px; margin:8px 0 0; font-size:13px;}
@@ -153,14 +165,14 @@
     .masthead{background:var(--navy) !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
     .scn-body{display:block !important;} .scn{break-inside:avoid;}
   }
-  @media (max-width:860px){.layout{grid-template-columns:1fr;} nav.toc{position:relative; height:auto;} .meta-grid{grid-template-columns:1fr 1fr;} .dash{grid-template-columns:repeat(3,1fr);} .evgrid{grid-template-columns:1fr;} .span2,.span3{grid-column:span 1;}}
+  @media (max-width:860px){.tool-grid{grid-template-columns:1fr;} .layout{grid-template-columns:1fr;} nav.toc{position:relative; height:auto;} .meta-grid{grid-template-columns:1fr 1fr;} .dash{grid-template-columns:repeat(3,1fr);} .evgrid{grid-template-columns:1fr;} .span2,.span3{grid-column:span 1;}}
 </style>
 </head>
 <body data-mode="partner">
 
 <div class="masthead">
   <div class="masthead-inner">
-    <div class="brand-row"><div class="brand-mark">P</div><span>Payroc &middot; Certification Script</span></div>
+    <div class="brand-row"><div class="brand-mark">P</div><span>Payroc &middot; Certification Script</span><div class="view-switch" title="Payroc reviewers: switch to reviewer view to verify tests and import a Solution Design"><span class="view-label">View</span><select id="mode"><option value="partner">Partner</option><option value="reviewer">Payroc reviewer</option></select></div></div>
     <h1 class="doc-title"><span id="title-partner">Partner</span> &mdash; Certification Script</h1>
     <p class="doc-subtitle">The UAT test plan Payroc and the partner run together before production. Scope is generated from the partner's Solution Design; every test carries a Test Tag so the Payroc team can find it in the logs.</p>
     <div class="meta-grid" id="mast-meta"></div>
@@ -353,7 +365,7 @@ function includedBySection() {
   allScenarios().forEach(function (sc) {
     if (isIncluded(sc) && map[sc.section]) map[sc.section].list.push(sc);
   });
-  return order.map(function (k) { return map[k]; }).filter(function (x) { return x.list.length; });
+  return order.map(function (k) { return map[k]; }).filter(function (x) { return x.list.length; }).map(function (x, i) { x.num = i + 1; return x; });
 }
 function counts() {
   var c = { total: 0, pass: 0, fail: 0, blocked: 0, follow_up: 0, not_run: 0, na: 0, verified: 0, reqTotal: 0, reqPass: 0, reqVerified: 0 };
@@ -394,12 +406,13 @@ function renderMasthead() {
 
 function renderToc(groups) {
   var h = '<div class="toc-heading">Overview</div><a href="#top-summary">Summary</a><a href="#blockers">Blockers &amp; follow-ups</a>';
-  h += '<div class="toc-heading">Workflows</div>';
+  var lastGroup = null;
   groups.forEach(function (g) {
+    if (g.sec.group !== lastGroup) { lastGroup = g.sec.group; h += '<div class="toc-heading">' + esc(lastGroup || 'Workflows') + '</div>'; }
     var done = g.list.filter(function (s) { var st = res(s.id).status; return st === 'pass' || st === 'na'; }).length;
-    h += '<a href="#sec-' + g.sec.section + '" class="' + (done === g.list.length ? 'done' : '') + '"><span>' + esc(g.sec.label) + '</span><span class="toc-count">' + done + '/' + g.list.length + '</span></a>';
+    h += '<a href="#sec-' + g.sec.section + '" class="' + (done === g.list.length ? 'done' : '') + '"><span>' + g.num + '. ' + esc(g.sec.label) + '</span><span class="toc-count">' + done + '/' + g.list.length + '</span></a>';
   });
-  h += '<div class="toc-heading">Wrap-up</div><a href="#reviewer-tools" class="reviewer-only">Splunk &amp; verification</a><a href="#signoff">Sign-off</a>';
+  h += '<div class="toc-heading">Review &amp; sign-off</div><a href="#reviewer-tools" class="reviewer-only">Splunk &amp; verification</a><a href="#signoff">Sign-off</a>';
   $('#toc').innerHTML = h;
 }
 
@@ -457,7 +470,7 @@ function sectionHtml(g) {
   var collapsed = STATE.collapsed['sec:' + g.sec.section];
   var plat = STATE.tailor.sections[g.sec.section] ? STATE.tailor.sections[g.sec.section].platform : '';
   var h = '<section class="sec' + (collapsed ? ' collapsed' : '') + '" id="sec-' + g.sec.section + '" data-sec="' + g.sec.section + '">';
-  h += '<div class="sec-head" data-action="toggle-sec"><h2>' + esc(g.sec.label) + '</h2><div class="sec-meta">' + (plat && plat !== 'both' && plat !== 'payroc' ? '<span class="pill wn">' + esc(plat) + '</span>' : '') + '<span data-sec-count>' + done + ' / ' + g.list.length + ' complete</span></div></div>';
+  h += '<div class="sec-head" data-action="toggle-sec"><h2>' + g.num + '. ' + esc(g.sec.label) + '</h2><div class="sec-meta">' + (plat && plat !== 'both' && plat !== 'payroc' ? '<span class="pill wn">' + esc(plat) + '</span>' : '') + '<span data-sec-count>' + done + ' / ' + g.list.length + ' complete</span></div></div>';
   h += '<div class="sec-body">' + g.list.map(scenarioHtml).join('');
   h += '<button class="btn secondary small" data-action="add-custom">+ Add scenario</button></div></section>';
   return h;
@@ -497,16 +510,19 @@ function render() {
   var app = [];
   app.push('<div id="top-summary"></div>');
   app.push('<div class="restore-banner" id="restore-banner"><span>A newer draft of this script is cached in this browser.</span><span><button class="btn small" id="restore-btn">Restore it</button> <button class="btn secondary small" id="dismiss-restore">Dismiss</button></span></div>');
-  app.push('<div class="autosave-bar"><div class="bar-row"><div class="autosave-status"><span class="autosave-dot" id="as-dot"></span><span id="as-text">Autosave is off</span></div><div class="bar-actions">' +
-    '<button class="btn" id="en-html" style="display:none">Autosave .html</button><button class="btn secondary" id="en-md" style="display:none">Autosave .md</button><button class="btn secondary" id="en-pdf" style="display:none">Autosave .pdf</button>' +
-    '<button class="btn secondary" id="dl-all">Download copies</button><select class="mode-toggle" id="mode"><option value="partner">Partner view</option><option value="reviewer">Payroc reviewer view</option></select></div></div>' +
-    '<div class="bar-row"><div class="small-note" id="as-detail"></div><div class="bar-actions"><button class="btn secondary small" id="imp-sd">Import SD (.md)</button><button class="btn secondary small" id="imp-res">Import results (.md / .json / .csv)</button><button class="btn secondary small" id="dl-csv">Results CSV template</button></div></div>' +
-    '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and .pdf.</div>' +
-    '<input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden></div>');
+  app.push('<div class="tool-grid">' +
+    '<div class="tool-card"><h3>Save</h3><div class="autosave-status"><span class="autosave-dot" id="as-dot"></span><span id="as-text">Autosave is off</span></div>' +
+    '<div class="bar-actions"><button class="btn" id="en-html" style="display:none">Autosave .html</button><button class="btn secondary" id="en-md" style="display:none">Autosave .md</button><button class="btn secondary" id="en-pdf" style="display:none">Autosave .pdf</button><button class="btn secondary" id="dl-all">Download copies</button></div>' +
+    '<div class="small-note" id="as-detail" style="margin-top:8px"></div>' +
+    '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and .pdf.</div></div>' +
+    '<div class="tool-card"><h3>Import results</h3><div>Bring in results filled in elsewhere (an AI assistant, a test harness or a spreadsheet).</div>' +
+    '<div class="bar-actions"><button class="btn secondary" id="imp-res">Import results</button><button class="btn secondary small" id="dl-csv">CSV template</button></div><div class="small-note" style="margin-top:6px">Accepts .md, .json or .csv, matched by scenario id or Test Tag.</div></div>' +
+    '<div class="tool-card reviewer-card reviewer-only" style="grid-column:1 / -1"><h3>Payroc setup (internal)</h3><div>Re-tailor this script to a Solution Design. Recorded results are kept.</div><div class="bar-actions"><button class="btn secondary" id="imp-sd">Import Solution Design (.md)</button></div></div>' +
+    '</div><input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden>');
   if ((CATALOG.flags || []).length) app.push('<div class="callout warn"><strong>Draft - pending confirmation with Payroc</strong><ol>' + CATALOG.flags.map(function (f) { return '<li>' + esc(f.text) + '</li>'; }).join('') + '</ol></div>');
   app.push('<div class="callout instructions"><strong>How to record a test</strong><ol><li>Open a scenario, copy its <b>Test Tag</b> and send it in the field shown under Endpoints (so Payroc can find your call in the logs).</li><li>Run the call in <b>UAT</b> and paste the response into &ldquo;Paste a response&rdquo;, or fill the evidence fields.</li><li>Set the result: Pass, Fail, <b>Blocked</b> or <b>Needs follow-up</b> (add a reason). Anything blocked appears in the Blockers table for Payroc.</li><li>Keep autosave on and send the saved files back to your Payroc contact. Never paste real card numbers or secrets.</li></ol></div>');
   var tn = STATE.tailor.notes || [];
-  var srcLine = STATE.tailor.sdProvided ? 'Scope generated from <b>' + esc(STATE.meta.sdFile || 'the imported Solution Design') + '</b>.' : '<b>No Solution Design imported</b> &mdash; showing the full catalogue. Use &ldquo;Import SD (.md)&rdquo; to tailor it to the partner.';
+  var srcLine = STATE.tailor.sdProvided ? 'Scope generated from <b>' + esc(STATE.meta.sdFile || 'the imported Solution Design') + '</b>.' : '<b>Full catalogue shown</b> &mdash; this script has not been tailored to a Solution Design yet.<span class="reviewer-only inline"> Use &ldquo;Import Solution Design&rdquo; below to tailor it.</span>';
   app.push('<div class="callout' + (STATE.tailor.sdProvided ? '' : ' warn') + '">' + srcLine + (tn.length ? '<p>' + tn.map(esc).join('<br>') + '</p>' : '') + '</div>');
   app.push('<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Progress</h3><span class="badge ' + b[1] + '" id="badge">' + b[0] + '</span><button class="chip' + ((c.blocked + c.follow_up) ? '' : ' zero') + '" id="open-chip" data-action="goto-blockers">' + (c.blocked + c.follow_up) + ' open item(s)</button></div><div class="progress"><div id="prog-bar" style="width:' + (c.total ? Math.round(100 * c.pass / c.total) : 0) + '%"></div></div>' +
     '<div class="dash" id="dash"></div></div>');
@@ -603,7 +619,7 @@ function certToMarkdown() {
   L.push('> **Pending confirmation:** ' + (CATALOG.flags || []).map(function (f) { return f.text; }).join(' '), '');
   L.push('# ' + (m.partner || 'Partner') + ' - Certification Script', '');
   includedBySection().forEach(function (g) {
-    L.push('<!-- cert:section=' + g.sec.section + ' -->', '## ' + g.sec.label, '');
+    L.push('<!-- cert:section=' + g.sec.section + ' -->', '## ' + g.num + '. ' + g.sec.label, '');
     g.list.forEach(function (sc) {
       var r = res(sc.id);
       L.push('<!-- cert:scenario=' + sc.id + ' -->', '### ' + sc.id + ' - ' + titleOf(sc), '');
@@ -703,7 +719,7 @@ function buildPdf() {
   para('Passed ' + c.pass + ' / ' + c.total + '   Failed ' + c.fail + '   Blocked ' + c.blocked + '   Follow-up ' + c.follow_up + '   Verified in logs ' + c.verified, 10, true, [0, 81, 194]); y += 6;
   var colors = { pass: [0, 168, 136], fail: [192, 51, 43], blocked: [192, 51, 43], follow_up: [180, 83, 9], na: [140, 140, 140], not_run: [120, 120, 120] };
   includedBySection().forEach(function (g) {
-    need(40); y += 8; para(g.sec.label, 13, true, [0, 29, 78]); doc.setDrawColor(226, 232, 240); doc.line(M, y - 2, W - M, y - 2); y += 4;
+    need(40); y += 8; para(g.num + '. ' + g.sec.label, 13, true, [0, 29, 78]); doc.setDrawColor(226, 232, 240); doc.line(M, y - 2, W - M, y - 2); y += 4;
     g.list.forEach(function (sc) {
       var r = res(sc.id); need(60);
       doc.setFillColor.apply(doc, colors[r.status]); doc.rect(M, y - 9, 3, 12, 'F');

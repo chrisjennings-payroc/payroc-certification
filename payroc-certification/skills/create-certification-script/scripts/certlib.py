@@ -17,9 +17,19 @@ VENDOR_JSPDF = os.path.join(SKILL_DIR, "vendor", "jspdf.umd.min.js")
 VERSION = "0.1.0"
 
 # Order sections appear in the script.
-ORDER = ["auth", "boarding", "equipment", "gateway", "hosted-fields", "hpp", "payment-links", "cloud",
-         "direct-api", "wallets", "recurring", "verification", "funding", "reporting", "errors",
+ORDER = ["auth", "errors", "boarding", "equipment", "gateway", "direct-api", "hosted-fields", "hpp",
+         "payment-links", "cloud", "wallets", "recurring", "verification", "funding", "reporting",
          "security", "golive"]
+# Display groups (script reads top to bottom: foundation -> setup -> take payments -> stored methods -> money -> close-out)
+GROUPS = {
+    "auth": "Foundation", "errors": "Foundation",
+    "boarding": "Onboarding & setup", "equipment": "Onboarding & setup", "gateway": "Onboarding & setup",
+    "direct-api": "Accepting payments", "hosted-fields": "Accepting payments", "hpp": "Accepting payments",
+    "payment-links": "Accepting payments", "cloud": "Accepting payments", "wallets": "Accepting payments",
+    "recurring": "Stored payment methods & checks", "verification": "Stored payment methods & checks",
+    "funding": "Funding & reporting", "reporting": "Funding & reporting",
+    "security": "Security & go-live", "golive": "Security & go-live",
+}
 ALWAYS = ["auth", "errors", "security", "golive"]
 STATUSES = ["not_run", "pass", "fail", "blocked", "follow_up", "na"]
 
@@ -27,7 +37,8 @@ STATUSES = ["not_run", "pass", "fail", "blocked", "follow_up", "na"]
 def _skill_map_labels():
     try:
         with open(os.path.join(SKILL_DIR, "skill-map.json"), encoding="utf-8") as fh:
-            return {k: v["label"] for k, v in json.load(fh)["sections"].items()}
+            # SD labels carry the SD's own numbering ("8.2e Direct API Payments"); the script numbers sections itself.
+            return {k: re.sub(r"^\d+(\.\d+)?[a-z]?\s+", "", v["label"]) for k, v in json.load(fh)["sections"].items()}
     except (OSError, KeyError, ValueError):
         return {}
 
@@ -56,6 +67,8 @@ def load_catalog():
         data["section"] = sid
         if sid in SKILL_MAP_LABELS:
             data["label"] = SKILL_MAP_LABELS[sid]
+        data["label"] = re.sub(r"^\d+(\.\d+)?[a-z]?\s+", "", data.get("label", sid))
+        data["group"] = GROUPS.get(sid, "Other")
         for sc in data.get("scenarios", []):
             if sc["id"] in seen:
                 raise ValueError("duplicate scenario id across catalogue: " + sc["id"])
@@ -279,11 +292,13 @@ def render_md(catalog, state):
          "verified_in_logs: 0",
          "pending_confirmation: " + json.dumps([f["id"] for f in catalog.get("flags", [])]), "---", "", NOTICE,
          "> **Pending confirmation:** " + " ".join(f["text"] for f in catalog.get("flags", [])), "", "# %s - Certification Script" % (m["partner"] or "Partner"), ""]
+    num = 0
     for sec in catalog["sections"]:
         scs = [sc for sc in sec["scenarios"] if sc["id"] in inc]
         if not scs:
             continue
-        L += ["<!-- cert:section=%s -->" % sec["section"], "## " + sec["label"], ""]
+        num += 1
+        L += ["<!-- cert:section=%s -->" % sec["section"], "## %d. %s" % (num, sec["label"]), ""]
         for sc in scs:
             eps = sc.get("endpoints") or []
             tag = "%s-%s-1" % (m["certRunId"], sc["id"])

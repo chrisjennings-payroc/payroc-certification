@@ -30,7 +30,7 @@ Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURIT
 | `/payroc-certification:cert-import <script.html> <sd.md>` | Re-tailor after the SD changed (done in-browser, keeps results) |
 | `/payroc-certification:cert-review <script.html>` | Consistency, blockers without reasons, missing evidence, secrets scan, Splunk tag list |
 
-Without Claude (partners, or anyone): open the generated `.html` in Chrome/Edge. **Import SD (.md)** tailors the script in the browser; **Autosave .html / .md / .pdf**
+Without Claude (partners, or anyone): open the generated `.html` in Chrome/Edge. In Payroc reviewer view (selector at the top right), **Import Solution Design** tailors the script in the browser; it is hidden from partners; **Autosave .html / .md / .pdf**
 write all three files as you work. Hand the `.md` to any AI assistant to help fill in evidence, then **Import results** to bring it back.
 
 ## Known pending items
