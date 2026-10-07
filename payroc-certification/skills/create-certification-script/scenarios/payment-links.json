@@ -1,0 +1,300 @@
+{
+  "section": "payment-links",
+  "label": "8.2d Payment Links",
+  "sourceSkills": [
+    "integrate-payment-links"
+  ],
+  "openQuestions": [
+    "PL-01: exact position of charge/order fields and required set not fully shown in skill",
+    "Worldnet: no payment-link API in worldnet-reference (Pay Link/eInvoice are Selfcare features only; XML pages not in snapshot)"
+  ],
+  "scenarios": [
+    {
+      "id": "PL-01",
+      "title": "Create single-use payment link (sale)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a single-use preset-charge link is created.",
+      "steps": [
+        "POST the payment-links endpoint with type singleUse, authType sale, flat charge object, expiresOn and merchantReference carrying the Test Tag.",
+        "Persist paymentLinkId and assets.paymentUrl."
+      ],
+      "expected": "HTTP 201 with paymentLinkId and assets.paymentUrl.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-links",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "merchantReference": "{{TEST_TAG}}",
+        "type": "singleUse",
+        "authType": "sale",
+        "paymentMethods": [
+          "card"
+        ],
+        "expiresOn": "{{YYYY-MM-DD}}",
+        "order": {
+          "orderId": "{{ORDER_ID}}",
+          "charge": {
+            "type": "preset",
+            "amount": 10000,
+            "currency": "USD"
+          }
+        }
+      },
+      "evidence": [
+        "paymentLinkId",
+        "assets.paymentUrl",
+        "HTTP status",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "charge is a flat object: type preset/prompt with amount/currency as siblings. Placement of charge inside the request is not shown precisely in the skill; confirm against the API schema."
+    },
+    {
+      "id": "PL-02",
+      "title": "Create multi-use link with customer-entered amount",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "multi-use",
+        "multiuse",
+        "donation",
+        "prompt"
+      ],
+      "objective": "Payroc verifies multiUse and prompt charge.",
+      "steps": [
+        "POST with type multiUse and charge type prompt."
+      ],
+      "expected": "HTTP 201; link stays active after payments.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-links",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "merchantReference": "{{TEST_TAG}}",
+        "type": "multiUse",
+        "authType": "sale",
+        "paymentMethods": [
+          "card"
+        ],
+        "charge": {
+          "type": "prompt",
+          "currency": "USD"
+        }
+      },
+      "evidence": [
+        "paymentLinkId",
+        "assets.paymentUrl"
+      ]
+    },
+    {
+      "id": "PL-03",
+      "title": "Pay a link and verify completed status",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a single-use link transitions to completed after payment.",
+      "steps": [
+        "Open assets.paymentUrl and pay with a UAT test card.",
+        "GET /v1/payment-links/{paymentLinkId}."
+      ],
+      "expected": "HTTP 200; status completed.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/payment-links/{paymentLinkId}",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (confirm with Payroc)",
+      "evidence": [
+        "paymentLinkId",
+        "status",
+        "payment id"
+      ]
+    },
+    {
+      "id": "PL-04",
+      "title": "Pre-authorization payment link",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "authorization"
+      ],
+      "objective": "Payroc verifies authType preAuthorization and later capture.",
+      "steps": [
+        "Create a link with authType preAuthorization; pay; capture via POST /v1/payments/{paymentId}/capture."
+      ],
+      "expected": "Link payment authorised; capture HTTP 200.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-links",
+          "tagField": "merchantReference"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/capture",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentLinkId",
+        "paymentId"
+      ]
+    },
+    {
+      "id": "PL-05",
+      "title": "Share link by email",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "email",
+        "share",
+        "sharing"
+      ],
+      "objective": "Payroc verifies a sharing event is created.",
+      "steps": [
+        "POST /v1/payment-links/{paymentLinkId}/sharing-events with sharingMethod email and recipients.",
+        "GET sharing-events."
+      ],
+      "expected": "HTTP 201 with sharingEventId.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payment-links/{paymentLinkId}/sharing-events",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "sharingMethod": "email",
+        "recipients": [
+          {
+            "name": "Customer Name",
+            "email": "customer@example.com"
+          }
+        ],
+        "merchantCopy": false
+      },
+      "evidence": [
+        "sharingEventId",
+        "paymentLinkId"
+      ]
+    },
+    {
+      "id": "PL-06",
+      "title": "Update link expiry via JSON Patch",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "update",
+        "patch",
+        "expire"
+      ],
+      "objective": "Payroc verifies PATCH uses an RFC 6902 array.",
+      "steps": [
+        "PATCH /v1/payment-links/{paymentLinkId} with replace /expiresOn."
+      ],
+      "expected": "HTTP 200; for single-use links the paymentUrl is regenerated.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/v1/payment-links/{paymentLinkId}",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "requestExample": [
+        {
+          "op": "replace",
+          "path": "/expiresOn",
+          "value": "2026-12-31"
+        }
+      ],
+      "evidence": [
+        "paymentLinkId",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "PL-07",
+      "title": "Deactivate a link",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "deactivate",
+        "cancel link"
+      ],
+      "objective": "Payroc verifies a link is permanently deactivated and cannot be paid.",
+      "steps": [
+        "POST /v1/payment-links/{paymentLinkId}/deactivate (no Idempotency-Key).",
+        "GET the link and attempt to open the URL."
+      ],
+      "expected": "Status deactivated; payment not possible.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payment-links/{paymentLinkId}/deactivate",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentLinkId",
+        "status"
+      ],
+      "pitfalls": "Irreversible."
+    },
+    {
+      "id": "PL-08",
+      "title": "Create link with missing required single-use fields",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies validation of conditional requirements.",
+      "steps": [
+        "POST a singleUse link without expiresOn or order.orderId."
+      ],
+      "expected": "HTTP 400 with errors[].parameter.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-links",
+          "tagField": "merchantReference"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP status",
+        "errors[].parameter"
+      ]
+    }
+  ]
+}

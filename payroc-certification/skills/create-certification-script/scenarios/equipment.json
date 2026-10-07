@@ -1,0 +1,191 @@
+{
+  "section": "equipment",
+  "label": "Terminal orders and equipment",
+  "sourceSkills": [
+    "order-a-terminal"
+  ],
+  "openQuestions": [
+    "EQ-06: processing-terminal reads unverified/unavailable in UAT",
+    "Payment intent (who pays) scenarios omitted; add if SD requires"
+  ],
+  "scenarios": [
+    {
+      "id": "EQ-01",
+      "title": "Place a terminal order",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify a minimal valid terminal order is accepted and the id persisted.",
+      "steps": [
+        "POST terminal-orders with orderItems [{type: solution, solutionTemplateId, solutionQuantity}] and Idempotency-Key.",
+        "Persist terminalOrderId."
+      ],
+      "expected": "201 with terminalOrderId and status open.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "UAT: send solutionTemplateId VAR_Only_TSYS.",
+      "requestExample": {
+        "trainingProvider": "partner",
+        "orderItems": [
+          {
+            "type": "solution",
+            "solutionTemplateId": "VAR_Only_TSYS",
+            "solutionQuantity": 1
+          }
+        ]
+      },
+      "evidence": [
+        "terminalOrderId",
+        "status",
+        "Idempotency-Key"
+      ]
+    },
+    {
+      "id": "EQ-02",
+      "title": "Retrieve order and list by status",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify order status read-back.",
+      "steps": [
+        "GET /v1/terminal-orders/{id}.",
+        "GET terminal-orders with status filter (plain array response)."
+      ],
+      "expected": "200; status one of open/held/dispatched/fulfilled/cancelled.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/terminal-orders/{terminalOrderId}",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "terminalOrderId",
+        "status"
+      ]
+    },
+    {
+      "id": "EQ-03",
+      "title": "Invalid order rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify partner surfaces order validation errors.",
+      "steps": [
+        "Submit an order with invalid solutionTemplateId or solutionQuantity above 50."
+      ],
+      "expected": "400 with errors[].parameter; corrected resubmit uses a new key.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "errors[].parameter"
+      ]
+    },
+    {
+      "id": "EQ-04",
+      "title": "Shipping to a non-DBA address",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "shipping",
+        "ship to"
+      ],
+      "objective": "Verify full shipping.address when overriding DBA.",
+      "steps": [
+        "Include shipping.address with recipientName, addressLine1, city, state, postalCode, email."
+      ],
+      "expected": "201; omitting a required field gives 400.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "terminalOrderId"
+      ]
+    },
+    {
+      "id": "EQ-05",
+      "title": "Order after account approval; status via event",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify ordering is gated on approval and tracked by terminalOrder.status.changed.",
+      "steps": [
+        "Wait for processingAccount.status.changed to approved.",
+        "Place the order and handle terminalOrder.status.changed events."
+      ],
+      "expected": "Order only after approval; events update order status without polling.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "event id",
+        "terminalOrderId",
+        "status"
+      ]
+    },
+    {
+      "id": "EQ-06",
+      "title": "Read provisioned terminal (production only)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "processing terminal",
+        "host configuration"
+      ],
+      "objective": "Verify processing-terminal reads once an order is fulfilled.",
+      "steps": [
+        "GET processing-terminals for the account and host-configurations."
+      ],
+      "expected": "200 with terminal config.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/processing-accounts/{processingAccountId}/processing-terminals",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Not available in UAT per skill (no processingTerminalId returned; known defect). Confirm with Payroc.",
+      "evidence": [
+        "processingTerminalId"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,513 @@
+{
+  "section": "reporting",
+  "label": "Reporting and event notifications",
+  "sourceSkills": [
+    "set-up-event-subscriptions",
+    "view-settlement-batches",
+    "view-settled-transactions",
+    "view-authorizations",
+    "view-disputes",
+    "view-ach-deposits"
+  ],
+  "openQuestions": [
+    "EV-05: retry interval/backoff after 5 attempts not documented",
+    "EV-03: no HMAC signature documented; only Payroc-Secret header",
+    "RPT-*: UAT data seeding for settlement/disputes not documented"
+  ],
+  "scenarios": [
+    {
+      "id": "EV-01",
+      "title": "Create event subscription",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify webhook registration.",
+      "steps": [
+        "POST event-subscriptions with enabled, eventTypes, notifications[{type webhook, uri, secret, supportEmailAddress}]; persist id."
+      ],
+      "expected": "201 with integer id, status registered; secret masked.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/event-subscriptions",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Needs event-scoped UAT key.",
+      "requestExample": {
+        "enabled": true,
+        "eventTypes": [
+          "processingAccount.status.changed",
+          "terminalOrder.status.changed"
+        ],
+        "notifications": [
+          {
+            "type": "webhook",
+            "uri": "https://{{WEBHOOK_HOST}}/webhooks/payroc",
+            "secret": "{{WEBHOOK_SECRET}}",
+            "supportEmailAddress": "{{SUPPORT_EMAIL}}"
+          }
+        ]
+      },
+      "evidence": [
+        "subscription id",
+        "status"
+      ]
+    },
+    {
+      "id": "EV-02",
+      "title": "Webhook acknowledges with 200 then processes async",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify prompt 200 and async handling.",
+      "steps": [
+        "Trigger an event (or send synthetic CloudEvents)."
+      ],
+      "expected": "Endpoint returns 200 before processing; payload parsed per type.",
+      "expectedStatus": 200,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "delivery log with timestamp",
+        "HTTP 200"
+      ]
+    },
+    {
+      "id": "EV-03",
+      "title": "Payroc-Secret verification",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the endpoint authenticates deliveries (Payroc-Secret header, constant-time).",
+      "steps": [
+        "Send a request with wrong Payroc-Secret."
+      ],
+      "expected": "Rejected with 401; correct secret accepted.",
+      "expectedStatus": 401,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "rejected request log"
+      ],
+      "pitfalls": "Payroc uses a shared-secret header, not documented HMAC."
+    },
+    {
+      "id": "EV-04",
+      "title": "Duplicate deliveries handled idempotently",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify CloudEvents id dedupe.",
+      "steps": [
+        "Deliver the same event id twice."
+      ],
+      "expected": "Processed once; second skipped.",
+      "expectedStatus": 200,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "event id",
+        "dedupe log"
+      ]
+    },
+    {
+      "id": "EV-05",
+      "title": "Failure and retry behaviour",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify partner copes with Payroc retries and fixes failures.",
+      "steps": [
+        "Return non-200 once, then 200 on retry; check subscription status."
+      ],
+      "expected": "Retried delivery accepted idempotently; failed subscription noticed via supportEmail/status.",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/event-subscriptions/{subscriptionId}",
+          "tagField": "id"
+        }
+      ],
+      "testData": "Retry schedule beyond 'up to 5' not documented.",
+      "evidence": [
+        "event ids",
+        "subscription status"
+      ]
+    },
+    {
+      "id": "EV-06",
+      "title": "processingAccount.status.changed handled",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify status events update boarding state.",
+      "steps": [
+        "Receive event; update status using documented enum values."
+      ],
+      "expected": "Local status updated; unknown values do not crash.",
+      "expectedStatus": 200,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "event id",
+        "processingAccountId",
+        "status"
+      ]
+    },
+    {
+      "id": "EV-07",
+      "title": "terminalOrder.status.changed handled",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify order lifecycle events.",
+      "steps": [
+        "Receive event; update order status; read reason on held/cancelled."
+      ],
+      "expected": "Order status updated.",
+      "expectedStatus": 200,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "event id",
+        "terminalOrderId",
+        "status"
+      ]
+    },
+    {
+      "id": "EV-08",
+      "title": "Signature and risk-status events",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "signature.signed",
+        "riskstatus",
+        "risk status",
+        "direct link"
+      ],
+      "objective": "Verify optional events.",
+      "steps": [
+        "Handle processingAccount.signature.signed and processingAccount.riskStatus.changed."
+      ],
+      "expected": "Handled with documented fields.",
+      "expectedStatus": 200,
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "event id"
+      ]
+    },
+    {
+      "id": "RPT-01",
+      "title": "List settlement batches",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify list by required date with pagination.",
+      "steps": [
+        "GET /v1/batches with date; follow top-level links rel next."
+      ],
+      "expected": "200 with batchId, saleAmount cents.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/batches",
+          "tagField": "merchantId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-02",
+      "title": "Retrieve a settlement batch",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify retrieve by batchId.",
+      "steps": [
+        "GET /v1/batches/{batchId}."
+      ],
+      "expected": "200 same shape as list item.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/batches/{batchId}",
+          "tagField": "batchId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-03",
+      "title": "Settled transactions by batch or date",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify transactions query.",
+      "steps": [
+        "GET /v1/transactions?batchId=\u2026 (integer) or date; skip null transactionId."
+      ],
+      "expected": "200 transactions list.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/transactions",
+          "tagField": "batchId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-04",
+      "title": "Filter transactions by type",
+      "tier": "recommended",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify transactionType casing.",
+      "steps": [
+        "GET /v1/transactions with transactionType Capture or Return."
+      ],
+      "expected": "Title-case param; response type lowercase.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/transactions",
+          "tagField": "batchId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-05",
+      "title": "List authorizations",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify list requires date or batchId.",
+      "steps": [
+        "GET /v1/authorizations; handle batch null."
+      ],
+      "expected": "200 with authorizationResponse enum.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/authorizations",
+          "tagField": "batchId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-06",
+      "title": "Retrieve authorization",
+      "tier": "recommended",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify integer id retrieval.",
+      "steps": [
+        "GET /v1/authorizations/{id}."
+      ],
+      "expected": "200.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/authorizations/{authorizationId}",
+          "tagField": "authorizationId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-07",
+      "title": "List disputes",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify required date.",
+      "steps": [
+        "GET /v1/disputes?date=\u2026"
+      ],
+      "expected": "200 with disputeType and currentStatus.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/disputes",
+          "tagField": "merchantId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-08",
+      "title": "Dispute status history",
+      "tier": "recommended",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify status array.",
+      "steps": [
+        "GET /v1/disputes/{disputeId}/statuses."
+      ],
+      "expected": "200 plain array of statuses.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/disputes/{disputeId}/statuses",
+          "tagField": "disputeId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-09",
+      "title": "ACH deposits list and retrieve",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify deposit read-back.",
+      "steps": [
+        "GET /v1/ach-deposits?date=\u2026 then GET /v1/ach-deposits/{id}."
+      ],
+      "expected": "200; netAmount cents.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/ach-deposits",
+          "tagField": "merchantId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/ach-deposits/{achDepositId}",
+          "tagField": "achDepositId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure. ACH endpoints may 500 in UAT; coordinate with Payroc.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-10",
+      "title": "ACH deposit fees",
+      "tier": "recommended",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify fees need date or achDepositId.",
+      "steps": [
+        "GET /v1/ach-deposit-fees?achDepositId=\u2026"
+      ],
+      "expected": "200 fees; 400 if neither filter.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/ach-deposit-fees",
+          "tagField": "achDepositId"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure. ACH endpoints may 500 in UAT; coordinate with Payroc.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    },
+    {
+      "id": "RPT-11",
+      "title": "Missing required date rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify required param handling.",
+      "steps": [
+        "Call /v1/batches without date."
+      ],
+      "expected": "400 with errors[].parameter naming date.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/batches",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "UAT data is wiped periodically; empty results are not a failure.",
+      "evidence": [
+        "resource id",
+        "HTTP status",
+        "query parameters"
+      ]
+    }
+  ]
+}

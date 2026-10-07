@@ -1,0 +1,428 @@
+{
+  "section": "boarding",
+  "label": "Merchant boarding",
+  "sourceSkills": [
+    "create-merchant-platform",
+    "create-pricing-intent",
+    "add-processing-account",
+    "add-attachment-to-processing-account"
+  ],
+  "openQuestions": [
+    "BRD-05: Source of the HATEOAS sign link at submission time is not fully documented",
+    "BRD-07/BRD-08: UAT pricing intent ids and approved fee values come from Payroc",
+    "BRD-12: Whether UAT permits duplicate taxId testing is unconfirmed"
+  ],
+  "scenarios": [
+    {
+      "id": "BRD-01",
+      "title": "Create merchant platform",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify a complete boarding submission is accepted and ids are persisted.",
+      "steps": [
+        "Build the body with business, processingAccounts (owners, processing, funding, pricing, signature, addendums [] if none).",
+        "POST /v1/merchant-platforms with a fresh Idempotency-Key.",
+        "Persist merchantPlatformId and each processingAccountId."
+      ],
+      "expected": "201 with merchantPlatformId, processingAccounts[].processingAccountId and status entered or pending.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Use test business/owner data only; UAT ids are plain integers (opaque).",
+      "requestExample": {
+        "business": {
+          "name": "Cert Merchant LLC",
+          "taxId": "{{TAX_ID}}",
+          "organizationType": "{{ENUM from api-schema}}",
+          "countryOfOperation": "US",
+          "addresses": [
+            {
+              "type": "legalAddress"
+            }
+          ],
+          "contactMethods": [
+            {
+              "type": "email",
+              "value": "{{EMAIL}}"
+            }
+          ]
+        },
+        "processingAccounts": [
+          {
+            "doingBusinessAs": "Cert DBA",
+            "owners": [
+              "control prong owner",
+              "different authorized signatory owner"
+            ],
+            "pricing": {
+              "type": "intent",
+              "pricingIntentId": "{{UAT_PRICING_INTENT_ID}}"
+            },
+            "signature": {
+              "type": "requestedViaDirectLink"
+            },
+            "addendums": []
+          }
+        ],
+        "metadata": {}
+      },
+      "evidence": [
+        "merchantPlatformId",
+        "processingAccountId",
+        "status",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "Parsing ids against a PREFIX-XXXX pattern; amounts must be cents; volumeBreakdown must sum to 100."
+    },
+    {
+      "id": "BRD-02",
+      "title": "Owners: one control prong and a different authorized signatory",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify ownership rules are met and no single owner holds both flags.",
+      "steps": [
+        "Submit with two owners: one isControlProng true, a different isAuthorizedSignatory true.",
+        "Submit a variant where one owner has both flags set (expect rejection)."
+      ],
+      "expected": "Valid split returns 201. Both-flags variant returns 400 with errors[].parameter naming the owner relationship.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 201 and 400 responses",
+        "errors[].parameter"
+      ],
+      "pitfalls": "Owners are immutable after boarding."
+    },
+    {
+      "id": "BRD-03",
+      "title": "Validation errors surfaced from errors[]",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify partner maps 400 errors[].parameter to request fields.",
+      "steps": [
+        "Submit an invalid body (e.g. volumeBreakdown not summing to 100, or digit-less phone).",
+        "Show the operator/log displaying each errors[].parameter and message.",
+        "Correct and resubmit with a fresh Idempotency-Key."
+      ],
+      "expected": "400 problem-details with errors[] items (parameter, detail, message); corrected resubmission with new key returns 201.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "error response body",
+        "errors[].parameter",
+        "new Idempotency-Key"
+      ]
+    },
+    {
+      "id": "BRD-04",
+      "title": "Missing Idempotency-Key rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner always sends Idempotency-Key.",
+      "steps": [
+        "POST a boarding request without the header (certification only)."
+      ],
+      "expected": "400 idempotencyKeyMissing.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 400",
+        "error type"
+      ]
+    },
+    {
+      "id": "BRD-05",
+      "title": "Direct-link signature",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "direct link",
+        "directlink",
+        "requestedviadirectlink"
+      ],
+      "objective": "Verify signature type requestedViaDirectLink with a HATEOAS link and merchant redirect.",
+      "steps": [
+        "Submit signature {type: requestedViaDirectLink, link} per the HATEOAS link.",
+        "Retrieve the sign link and redirect the merchant."
+      ],
+      "expected": "201; sign link available; processingAccount.signature.signed received after signing.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Where the initial link object comes from is not fully documented in the skill.",
+      "evidence": [
+        "processingAccountId",
+        "sign link href"
+      ]
+    },
+    {
+      "id": "BRD-06",
+      "title": "Email signature and reminder",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "requestedviaemail",
+        "email signature",
+        "reminder"
+      ],
+      "objective": "Verify requestedViaEmail and optional pricingAgreement reminder.",
+      "steps": [
+        "Board with signature.type requestedViaEmail.",
+        "POST /v1/processing-accounts/{id}/reminders {type: pricingAgreement}."
+      ],
+      "expected": "Reminder returns 201 with reminderId; 409 if already signed.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/reminders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "type": "pricingAgreement"
+      },
+      "evidence": [
+        "reminderId",
+        "processingAccountId"
+      ]
+    },
+    {
+      "id": "BRD-07",
+      "title": "Pricing intent id assigned at boarding",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify an environment-correct pricingIntentId is used and the intent is active.",
+      "steps": [
+        "Obtain an active pricingIntentId for UAT (Payroc-provided or created below).",
+        "Board with pricing {type: intent, pricingIntentId}."
+      ],
+      "expected": "Accepted with 201; no UAT intent ids hard-coded for production.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Payroc provides intent ids; confirm UAT id with Payroc.",
+      "requestExample": {
+        "type": "intent",
+        "pricingIntentId": "{{UAT_PRICING_INTENT_ID}}"
+      },
+      "evidence": [
+        "pricingIntentId",
+        "processingAccountId"
+      ]
+    },
+    {
+      "id": "BRD-08",
+      "title": "Create and read a pricing intent",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "create pricing",
+        "pricing intent creation",
+        "manage pricing"
+      ],
+      "objective": "Verify partner-managed pricing templates are created in pendingReview and read back.",
+      "steps": [
+        "POST /v1/pricing-intents with key, country US, version 5.2, base, processor, gateway.",
+        "GET /v1/pricing-intents/{id} and confirm status."
+      ],
+      "expected": "201 with id and status pendingReview; usable only once active.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/pricing-intents",
+          "tagField": "key"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pricing-intents/{pricingIntentId}",
+          "tagField": "key"
+        }
+      ],
+      "testData": "Fee values are commercially negotiated; use values agreed with Payroc.",
+      "evidence": [
+        "pricingIntentId",
+        "status"
+      ],
+      "pitfalls": "base fields must be numeric (0), not null; amounts in cents."
+    },
+    {
+      "id": "BRD-09",
+      "title": "Add a processing account to an existing platform",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "add processing account",
+        "additional processing account",
+        "second mid",
+        "multiple locations"
+      ],
+      "objective": "Verify an additional MID is created via the platform sub-resource.",
+      "steps": [
+        "POST /v1/merchant-platforms/{merchantPlatformId}/processing-accounts with a single account object (no wrapper).",
+        "Read back via GET /v1/processing-accounts/{id}."
+      ],
+      "expected": "201 with processingAccountId and status entered/pending.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms/{merchantPlatformId}/processing-accounts",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "merchantPlatformId",
+        "processingAccountId"
+      ],
+      "pitfalls": "Do not wrap the body like Create Merchant Platform."
+    },
+    {
+      "id": "BRD-10",
+      "title": "Attachment upload and status",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "attachment",
+        "document upload"
+      ],
+      "objective": "Verify multipart upload and uploadStatus read-back.",
+      "steps": [
+        "POST multipart/form-data with attachment (JSON part, type from enum) and file (binary) to /v1/processing-accounts/{id}/attachments.",
+        "GET /v1/attachments/{attachmentId} and read uploadStatus."
+      ],
+      "expected": "201 with attachmentId and uploadStatus pending; later accepted or rejected.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/attachments",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/attachments/{attachmentId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Test file under 50 MB, non-compressed allowed format (e.g. PDF).",
+      "evidence": [
+        "attachmentId",
+        "uploadStatus"
+      ],
+      "pitfalls": "Part name is attachment (singular); do not set Content-Type application/json."
+    },
+    {
+      "id": "BRD-11",
+      "title": "Status read-back and webhook fallback",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner reads processing account/platform status as a fallback to events.",
+      "steps": [
+        "GET /v1/processing-accounts/{id} and GET /v1/merchant-platforms/{id}.",
+        "Reconcile status against the last processingAccount.status.changed event."
+      ],
+      "expected": "200 with current status matching partner records.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/processing-accounts/{processingAccountId}",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/merchant-platforms/{merchantPlatformId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "processingAccountId",
+        "status"
+      ]
+    },
+    {
+      "id": "BRD-12",
+      "title": "Duplicate merchant (409) handled",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify partner retrieves the existing record on resourceAlreadyExists/taxIdInUse and checks whether an idempotent first POST succeeded.",
+      "steps": [
+        "Resubmit boarding for an already-boarded Tax ID (certification only)."
+      ],
+      "expected": "409; partner retrieves existing platform instead of re-POSTing.",
+      "expectedStatus": 409,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 409",
+        "error type"
+      ]
+    }
+  ]
+}

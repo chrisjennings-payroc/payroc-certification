@@ -1,0 +1,110 @@
+{
+  "section": "gateway",
+  "label": "Gateway configuration",
+  "sourceSkills": [
+    "order-a-terminal"
+  ],
+  "openQuestions": [
+    "Worldnet self-care configuration not documented in sourced skills; no Worldnet scenarios authored",
+    "Gateway_Payroc template name taken from legacy guide; confirm against skill enum",
+    "Gateway-level settings beyond solutionSetup unknown"
+  ],
+  "scenarios": [
+    {
+      "id": "GW-01",
+      "title": "Gateway_Payroc order with solutionSetup",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify a software gateway order with gateway settings is accepted.",
+      "steps": [
+        "POST terminal-orders with solutionTemplateId Gateway_Payroc (UAT: VAR_Only_TSYS), timezone, industryTemplateId, batchClosure, tokenization, tips.",
+        "Omit shipping."
+      ],
+      "expected": "201 status open; no hardware shipped.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "UAT accepts VAR_Only_TSYS; Gateway_Payroc required for production per legacy guide.",
+      "requestExample": {
+        "trainingProvider": "partner",
+        "orderItems": [
+          {
+            "type": "solution",
+            "solutionTemplateId": "VAR_Only_TSYS",
+            "solutionQuantity": 1,
+            "solutionSetup": {
+              "timezone": "America/Chicago",
+              "batchClosure": {
+                "batchCloseType": "automatic",
+                "batchCloseTime": "23:00"
+              },
+              "tokenization": true
+            }
+          }
+        ]
+      },
+      "evidence": [
+        "terminalOrderId",
+        "status"
+      ]
+    },
+    {
+      "id": "GW-02",
+      "title": "Batch closure automatic requires time",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify batchClosure discriminator rules.",
+      "steps": [
+        "Submit automatic without batchCloseTime (expect 400).",
+        "Submit manual without a time (expect 201)."
+      ],
+      "expected": "400 for automatic without time; manual accepted.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-accounts/{processingAccountId}/terminal-orders",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "errors[].parameter"
+      ]
+    },
+    {
+      "id": "GW-03",
+      "title": "Order read-back reflects gateway order",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the gateway order is retrievable.",
+      "steps": [
+        "GET /v1/terminal-orders/{id}."
+      ],
+      "expected": "200 with orderItems and status.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/terminal-orders/{terminalOrderId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "terminalOrderId"
+      ]
+    }
+  ]
+}

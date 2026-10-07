@@ -1,0 +1,283 @@
+{
+  "section": "funding",
+  "label": "Funding",
+  "sourceSkills": [
+    "set-up-a-funding-recipient",
+    "send-funds-to-a-merchant",
+    "view-funding-activity"
+  ],
+  "openQuestions": [
+    "FND-07: How to hold a UAT instruction past accepted not documented",
+    "FND-01: UAT KYC simulation requires Payroc enablement"
+  ],
+  "scenarios": [
+    {
+      "id": "FND-01",
+      "title": "Create funding recipient",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify recipient creation with KYC data and ids persisted.",
+      "steps": [
+        "POST /v1/funding-recipients with recipientType, taxId, doingBusinessAs, address, contactMethods, owners, fundingAccounts (use credit)."
+      ],
+      "expected": "201 with integer recipientId, status pending/approved, fundingAccountId(s).",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/funding-recipients",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "KYC may be non-deterministic in UAT.",
+      "evidence": [
+        "recipientId",
+        "fundingAccountId",
+        "status"
+      ],
+      "pitfalls": "Exactly one control prong; isControlProng required on every owner; phone digits only."
+    },
+    {
+      "id": "FND-02",
+      "title": "Recipient validation errors",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify errors[] handling.",
+      "steps": [
+        "Submit with wrong recipientType casing or missing owner identifier."
+      ],
+      "expected": "400 with errors[].parameter; resubmit with fresh key.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/funding-recipients",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "errors[].parameter"
+      ]
+    },
+    {
+      "id": "FND-03",
+      "title": "Recipient status read-back",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner tracks KYC status.",
+      "steps": [
+        "GET /v1/funding-recipients/{recipientId}."
+      ],
+      "expected": "200 status pending, approved, rejected or hold.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/funding-recipients/{recipientId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "recipientId",
+        "status"
+      ]
+    },
+    {
+      "id": "FND-04",
+      "title": "Check funding balance",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify available balance is checked before sending funds.",
+      "steps": [
+        "GET /v1/funding-balance (optionally merchantId)."
+      ],
+      "expected": "200; only available is used for instructions.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/funding-balance",
+          "tagField": "merchantId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "available"
+      ]
+    },
+    {
+      "id": "FND-05",
+      "title": "Create funding instruction",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "send funds",
+        "funding instruction",
+        "payout"
+      ],
+      "objective": "Verify send-funds instruction.",
+      "steps": [
+        "POST /v1/funding-instructions with merchants[].recipients[] (fundingAccountId integer, paymentMethod ACH, amount value cents, currency USD)."
+      ],
+      "expected": "201 with integer instructionId, status accepted.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/funding-instructions",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Requires KYC-approved recipient and available balance.",
+      "requestExample": {
+        "merchants": [
+          {
+            "merchantId": "{{MERCHANT_ID}}",
+            "recipients": [
+              {
+                "fundingAccountId": 0,
+                "paymentMethod": "ACH",
+                "amount": {
+                  "value": 50000,
+                  "currency": "USD"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "evidence": [
+        "instructionId",
+        "status"
+      ]
+    },
+    {
+      "id": "FND-06",
+      "title": "Track instruction status",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "send funds",
+        "funding instruction",
+        "payout"
+      ],
+      "objective": "Verify lifecycle tracking.",
+      "steps": [
+        "GET /v1/funding-instructions/{id}; handle accepted/pending/completed and recipient failed/rejected/onHold."
+      ],
+      "expected": "Statuses read; onHold matched camelCase.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/funding-instructions/{instructionId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "instructionId",
+        "status"
+      ]
+    },
+    {
+      "id": "FND-07",
+      "title": "Update or delete while accepted",
+      "tier": "conditional",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [
+        "send funds",
+        "funding instruction"
+      ],
+      "objective": "Verify modifications only while accepted.",
+      "steps": [
+        "PUT then DELETE an accepted instruction.",
+        "Attempt PUT after it leaves accepted (409)."
+      ],
+      "expected": "204 while accepted; 409 afterwards.",
+      "expectedStatus": 204,
+      "endpoints": [
+        {
+          "method": "PUT",
+          "path": "/v1/funding-instructions/{instructionId}",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "DELETE",
+          "path": "/v1/funding-instructions/{instructionId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "How to hold UAT instruction in non-accepted state is not documented.",
+      "evidence": [
+        "HTTP 204",
+        "HTTP 409"
+      ]
+    },
+    {
+      "id": "FND-08",
+      "title": "View funding activity",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify credits/debits read with required date range.",
+      "steps": [
+        "GET /v1/funding-activity with dateFrom and dateTo (YYYY-MM-DD) on every page."
+      ],
+      "expected": "200; handle recipient only on debit; amounts positive, type gives direction.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/funding-activity",
+          "tagField": "merchantId"
+        }
+      ],
+      "testData": "UAT empty until recipient/instruction exist.",
+      "evidence": [
+        "activity id",
+        "type",
+        "amount"
+      ]
+    },
+    {
+      "id": "FND-09",
+      "title": "Funding activity missing dates",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify required params.",
+      "steps": [
+        "Call without dateTo."
+      ],
+      "expected": "400 naming dateTo.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/funding-activity",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "errors[].parameter"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "name": "payroc-certification",
+  "description": "Payroc Certification Script toolkit: tailor the UAT certification script to a partner's Solution Design, import results, and run pre-review checks.",
+  "version": "0.1.0",
+  "author": { "name": "Payroc Sales Engineering" }
+}

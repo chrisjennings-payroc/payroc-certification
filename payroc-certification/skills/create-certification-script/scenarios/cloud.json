@@ -1,0 +1,552 @@
+{
+  "section": "cloud",
+  "label": "Payroc Cloud card-present",
+  "sourceSkills": [
+    "integrate-payroc-cloud"
+  ],
+  "openQuestions": [
+    "CP-02: UAT decline trigger amounts/cards not documented in skill",
+    "CP-05: How to simulate device offline/timeout in UAT (simulator?) not documented",
+    "CP-07: Source of a settled UAT payment for referenced refund not documented",
+    "CP-12: UAT surcharge setup not documented",
+    "CP-13: closed-loop test cards not documented",
+    "Cloud error shape is assumed to match the standard envelope and is unverified on Cloud (per skill)",
+    "Prefix CP assumed for Cloud (authoring guide lists no dedicated Cloud prefix)"
+  ],
+  "scenarios": [
+    {
+      "id": "CP-01",
+      "title": "Cloud sale: submit, poll, follow link, retrieve payment",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the full async instruction flow ends in a retrieved payment, not just a 202.",
+      "steps": [
+        "POST a payment instruction to the device serialNumber with a fresh Idempotency-Key and order.orderId = Test Tag.",
+        "Persist paymentInstructionId from the 202.",
+        "GET /v1/payment-instructions/{id} and await the response (gateway holds ~60s); re-issue only while status is inProgress.",
+        "On completed, follow link.href (do not build the URL from the instruction id) to GET /v1/payments/{paymentId}.",
+        "Branch on transactionResult/payment status using the full approval set (ready and complete are both approvals)."
+      ],
+      "expected": "Submit returns 202 with status inProgress and an instruction id. Poll reaches completed with link.href pointing at a paymentId distinct from the instruction id. Retrieved payment shows an approved outcome (responseCode A).",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/payment-instructions/{paymentInstructionId}",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/payments/{paymentId}",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a UAT device serialNumber and processingTerminalId provisioned by Payroc, or the Payroc Cloud Simulator (cloud.uat.payroc.com). Amounts are integer cents.",
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 4999,
+          "currency": "USD"
+        },
+        "customizationOptions": {
+          "entryMethod": "deviceRead"
+        },
+        "autoCapture": true
+      },
+      "evidence": [
+        "paymentInstructionId",
+        "paymentId",
+        "HTTP status 202",
+        "Idempotency-Key",
+        "order.orderId"
+      ],
+      "pitfalls": "Treating 202 or a 200 poll as approval; synthesising /payments/{instructionId}; hand-rolled tight poll loops."
+    },
+    {
+      "id": "CP-02",
+      "title": "Sale outcome read from payment, not instruction (decline path)",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner reads the bank outcome from the retrieved payment and handles a declined result.",
+      "steps": [
+        "Submit a sale instruction using the documented UAT decline trigger.",
+        "Poll to completed (or failure) and follow the link.",
+        "Show the POS surfacing the declined result from the retrieved payment."
+      ],
+      "expected": "Instruction completes; retrieved payment shows a declined status/responseCode D. POS does not treat the instruction completing as an approval.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/payments/{paymentId}",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com (confirm with Payroc)",
+      "evidence": [
+        "paymentInstructionId",
+        "paymentId",
+        "responseCode",
+        "status"
+      ]
+    },
+    {
+      "id": "CP-03",
+      "title": "Cancel an in-progress instruction",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner can cancel an instruction while the device is still waiting.",
+      "steps": [
+        "Submit a sale instruction; do not complete it on the device.",
+        "DELETE /v1/payment-instructions/{id} while status is inProgress.",
+        "GET the instruction and confirm status canceled."
+      ],
+      "expected": "DELETE returns 204; subsequent GET shows status canceled and no payment is created.",
+      "expectedStatus": 204,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "DELETE",
+          "path": "/v1/payment-instructions/{paymentInstructionId}",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentInstructionId",
+        "HTTP 204",
+        "final status canceled"
+      ]
+    },
+    {
+      "id": "CP-04",
+      "title": "Cancel after completion is rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner checks status before cancelling and handles 409.",
+      "steps": [
+        "Complete a sale instruction.",
+        "Attempt DELETE on the completed instruction.",
+        "Show the POS handling the 409 by re-reading status."
+      ],
+      "expected": "DELETE returns 409; POS surfaces current status rather than retrying blindly.",
+      "expectedStatus": 409,
+      "endpoints": [
+        {
+          "method": "DELETE",
+          "path": "/v1/payment-instructions/{paymentInstructionId}",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentInstructionId",
+        "HTTP 409"
+      ]
+    },
+    {
+      "id": "CP-05",
+      "title": "Offline/timeout retry with the same Idempotency-Key",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify a retried submission does not create a second device instruction.",
+      "steps": [
+        "Submit a sale instruction and simulate a client timeout before the response is read.",
+        "Resend the byte-for-byte identical body with the same Idempotency-Key.",
+        "Confirm only one instruction/payment results."
+      ],
+      "expected": "Retry returns the original instruction result; only one paymentInstructionId and at most one payment exist for the order.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 1000,
+          "currency": "USD"
+        }
+      },
+      "evidence": [
+        "Idempotency-Key (both attempts)",
+        "paymentInstructionId",
+        "paymentId"
+      ],
+      "pitfalls": "Generating a new key on retry causes a duplicate charge attempt."
+    },
+    {
+      "id": "CP-06",
+      "title": "Idempotency key reused with a changed body",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner handles 409 when a key is reused with a different body.",
+      "steps": [
+        "Submit an instruction.",
+        "Resubmit with the same Idempotency-Key but a different amount."
+      ],
+      "expected": "Gateway returns 409; partner generates a fresh key only for the genuinely new submission.",
+      "expectedStatus": 409,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "Idempotency-Key",
+        "HTTP 409"
+      ]
+    },
+    {
+      "id": "CP-07",
+      "title": "Referenced refund against a settled payment",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify a referenced refund uses the standard payments API with the original paymentId.",
+      "steps": [
+        "Locate the original payment via GET /v1/payments/{paymentId} or GET /v1/payments search.",
+        "Check supportedOperations includes refund.",
+        "POST /v1/payments/{paymentId}/refunds with amount and currency and a new Idempotency-Key."
+      ],
+      "expected": "201 with a refund resource; amount does not exceed original. Note: against an open-batch payment the platform auto-reverses instead.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/refunds",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Requires a settled payment (closed batch). Confirm with Payroc how to obtain a settled UAT payment.",
+      "requestExample": {
+        "amount": 1000,
+        "currency": "USD"
+      },
+      "evidence": [
+        "paymentId",
+        "refundId",
+        "Idempotency-Key",
+        "HTTP status"
+      ],
+      "pitfalls": "Expecting a refund record when the payment is still in an open batch."
+    },
+    {
+      "id": "CP-08",
+      "title": "Unreferenced refund via device instruction",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify an unreferenced refund runs as a refund instruction with order.description.",
+      "steps": [
+        "POST /v1/devices/{serialNumber}/refund-instructions with order.description set.",
+        "Poll, follow the link, and GET /v1/refunds/{refundId}."
+      ],
+      "expected": "202 then completed; refund retrieved with responseCode A.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/refund-instructions",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/refunds/{refundId}",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 500,
+          "currency": "USD",
+          "description": "Cert unreferenced refund"
+        }
+      },
+      "evidence": [
+        "refundInstructionId",
+        "refundId",
+        "HTTP status"
+      ],
+      "pitfalls": "Omitting order.description (required on refund instructions)."
+    },
+    {
+      "id": "CP-09",
+      "title": "Reverse a payment in an open batch",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify reversal of an unsettled payment uses the reverse endpoint.",
+      "steps": [
+        "Complete a sale instruction (batch still open).",
+        "POST /v1/payments/{paymentId}/reverse with a new Idempotency-Key (omit amount for full)."
+      ],
+      "expected": "200; payment reflects reversal; no funds moved.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/reverse",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentId",
+        "Idempotency-Key",
+        "HTTP 200"
+      ]
+    },
+    {
+      "id": "CP-10",
+      "title": "Signature capture",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "signature"
+      ],
+      "objective": "Verify standalone signature instruction flow and decoding.",
+      "steps": [
+        "POST /v1/devices/{serialNumber}/signature-instructions with processingTerminalId.",
+        "Poll, follow the signature link, GET /v1/signatures/{signatureId}.",
+        "Decode the Base64 signature using contentType."
+      ],
+      "expected": "Completed instruction; signature retrieved with contentType (e.g. image/png) and decodes to an image.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/signature-instructions",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/signatures/{signatureId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}"
+      },
+      "evidence": [
+        "signatureInstructionId",
+        "signatureId"
+      ]
+    },
+    {
+      "id": "CP-11",
+      "title": "Tip prompted on device",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "tip",
+        "gratuity"
+      ],
+      "objective": "Verify tip is sent in order.breakdown and reflected on the payment.",
+      "steps": [
+        "Submit a sale with breakdown.subtotal and tip {type, mode: prompted}.",
+        "Complete on device and retrieve the payment."
+      ],
+      "expected": "Payment amount equals subtotal + tip; tip reported on the retrieved payment.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 4999,
+          "currency": "USD",
+          "breakdown": {
+            "subtotal": 4500,
+            "tip": {
+              "type": "fixedAmount",
+              "mode": "prompted",
+              "amount": 499
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentInstructionId",
+        "paymentId",
+        "tip amount"
+      ],
+      "pitfalls": "Total amount must reconcile with breakdown."
+    },
+    {
+      "id": "CP-12",
+      "title": "Surcharge on a card-present sale",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "surcharg"
+      ],
+      "objective": "Verify surcharge is expressed in order.breakdown.surcharge and bypass is honoured.",
+      "steps": [
+        "Submit a sale with breakdown.surcharge (percentage or amount).",
+        "Optionally submit with surcharge.bypass true and compare."
+      ],
+      "expected": "Retrieved payment reflects surcharge per request; bypass removes it.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Requires a processing account boarded with a surcharge-capable pricing program. Confirm UAT setup with Payroc.",
+      "evidence": [
+        "paymentId",
+        "surcharge amount"
+      ]
+    },
+    {
+      "id": "CP-13",
+      "title": "Closed-loop read retrieval",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "closed-loop",
+        "closed loop",
+        "mifare"
+      ],
+      "objective": "Verify closed-loop read payload is retrieved and treated as unstructured.",
+      "steps": [
+        "Issue an instruction configured with closedLoopOptions.",
+        "Retrieve GET /v1/closed-loop-reads/{closedLoopReadId}."
+      ],
+      "expected": "200; data object returned; partner does not assume a fixed schema.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/closed-loop-reads/{closedLoopReadId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Closed-loop card/test data not documented; confirm with Payroc.",
+      "evidence": [
+        "closedLoopReadId"
+      ]
+    },
+    {
+      "id": "CP-14",
+      "title": "Device lookup",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify the partner resolves a device serialNumber via GET /devices.",
+      "steps": [
+        "GET /v1/devices (optionally active=true) and select the target serialNumber."
+      ],
+      "expected": "200 with devices array including serialNumber.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/devices",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "serialNumber",
+        "HTTP 200"
+      ]
+    },
+    {
+      "id": "CP-15",
+      "title": "Pre-authorization (autoCapture false)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "pre auth"
+      ],
+      "objective": "Verify pre-auth is requested deliberately with autoCapture false.",
+      "steps": [
+        "Submit a payment instruction with autoCapture false.",
+        "Retrieve payment and confirm type preAuthorization."
+      ],
+      "expected": "Payment type preAuthorization, not captured.",
+      "expectedStatus": 202,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/devices/{serialNumber}/payment-instructions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PROCESSING_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 2000,
+          "currency": "USD"
+        },
+        "autoCapture": false
+      },
+      "evidence": [
+        "paymentId",
+        "type"
+      ]
+    }
+  ]
+}

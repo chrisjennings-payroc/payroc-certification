@@ -1,0 +1,315 @@
+{
+  "section": "hosted-fields",
+  "label": "8.2b Hosted Fields",
+  "sourceSkills": [
+    "integrate-hosted-fields",
+    "create-single-use-token",
+    "save-a-payment-method"
+  ],
+  "openQuestions": [
+    "HF-02..HF-06: UAT test cards and decline/3DS triggers not documented in source skills",
+    "HF-01: session success status code not stated",
+    "HF-03: status code for reused token not pinned (400/422)",
+    "Worldnet hosted-fields equivalent: none documented in worldnet-reference (GoChip excluded)"
+  ],
+  "scenarios": [
+    {
+      "id": "HF-01",
+      "title": "Hosted Fields session token created",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a server-side session token is issued for the hosted fields library.",
+      "steps": [
+        "Obtain a Bearer token server-side.",
+        "POST the hosted-fields-sessions endpoint with libVersion (four-part version from the Payroc create-a-payment-form guide) and scenario payment, new Idempotency-Key.",
+        "Return only the session token to the browser."
+      ],
+      "expected": "HTTP 200/201 with a session token (valid 10 minutes). Bearer token is never exposed to the browser.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/hosted-fields-sessions",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "libVersion": "{{HF_LIB_VERSION}}",
+        "scenario": "payment"
+      },
+      "evidence": [
+        "HTTP status",
+        "Idempotency-Key",
+        "processingTerminalId"
+      ],
+      "pitfalls": "libVersion must match the CDN script version and differs between UAT and production. Generate one session per checkout page load. Success status code is not stated in the skill."
+    },
+    {
+      "id": "HF-02",
+      "title": "Hosted Fields tokenization then sale",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a single-use token from submissionSuccess is accepted by the payments API.",
+      "steps": [
+        "Load the library and render fields with a valid session token.",
+        "Submit test card details; capture the token from submissionSuccess.",
+        "POST /v1/payments with paymentMethod singleUseToken and the token, channel web."
+      ],
+      "expected": "HTTP 201 with paymentId; transactionResult.responseCode A. Success branch must accept every approval status (e.g. ready with A).",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status",
+        "transactionResult.responseCode",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "Single-use tokens are one-time and expire in 30 minutes."
+    },
+    {
+      "id": "HF-03",
+      "title": "Hosted Fields single-use token cannot be reused",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a consumed single-use token is rejected.",
+      "steps": [
+        "Complete HF-02.",
+        "POST /v1/payments again with the same single-use token and a new Idempotency-Key."
+      ],
+      "expected": "Request rejected (4xx, skill lists 400/422); no second charge.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "HTTP status",
+        "errors[]"
+      ],
+      "pitfalls": "Exact status code not pinned in the skill."
+    },
+    {
+      "id": "HF-04",
+      "title": "Hosted Fields declined card",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a decline from a hosted-fields token is handled.",
+      "steps": [
+        "Tokenize a card using the documented decline trigger.",
+        "POST /v1/payments with the token.",
+        "Branch on transactionResult, not HTTP status."
+      ],
+      "expected": "Decline in transactionResult body; application shows a decline and requires a fresh session to retry.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode"
+      ]
+    },
+    {
+      "id": "HF-05",
+      "title": "Hosted Fields save card (tokenization scenario)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "tokeniz",
+        "save card",
+        "saved card",
+        "secure token",
+        "token"
+      ],
+      "objective": "Payroc verifies a card can be saved via the tokenization session scenario.",
+      "steps": [
+        "Create a session with scenario tokenization.",
+        "Submit the form; send the single-use token to POST /v1/processing-terminals/{processingTerminalId}/secure-tokens with source singleUseToken.",
+        "Persist secureTokenId and token."
+      ],
+      "expected": "Secure token created (HTTP 201) with secureTokenId and token starting 296753.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/hosted-fields-sessions",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/secure-tokens",
+          "tagField": "secureTokenId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "libVersion": "{{HF_LIB_VERSION}}",
+        "scenario": "tokenization"
+      },
+      "evidence": [
+        "secureTokenId",
+        "token",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "HF-06",
+      "title": "Hosted Fields sale with 3-D Secure",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure",
+        "sca"
+      ],
+      "objective": "Payroc verifies MPI authentication is carried into the payment from a hosted-fields token.",
+      "steps": [
+        "After submissionSuccess, call the MPI endpoint with the single-use token.",
+        "Receive the result on the registered webhook; store mpiReference.",
+        "POST /v1/payments with threeDSecure gateway and mpiReference."
+      ],
+      "expected": "Webhook result A then payment HTTP 201.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}"
+        },
+        "threeDSecure": {
+          "serviceProvider": "gateway",
+          "mpiReference": "{{MPI_REFERENCE}}"
+        }
+      },
+      "evidence": [
+        "orderId",
+        "mpiReference",
+        "paymentId"
+      ],
+      "pitfalls": "Terminal must be enabled for 3DS and a webhook URL registered with Payroc support."
+    },
+    {
+      "id": "HF-07",
+      "title": "Hosted Fields ACH payment",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer",
+        "pad"
+      ],
+      "objective": "Payroc verifies an ACH single-use token can be charged via the bank transfer endpoint.",
+      "steps": [
+        "Render ACH fields (one payment type per page).",
+        "POST /v1/bank-transfer-payments with singleUseToken and secCode."
+      ],
+      "expected": "HTTP 201; status pending.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 2999,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}",
+          "secCode": "web"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status"
+      ]
+    }
+  ]
+}

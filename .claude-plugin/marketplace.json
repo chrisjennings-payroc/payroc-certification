@@ -1,0 +1,15 @@
+{
+  "name": "payroc-certification-toolkit",
+  "owner": {
+    "name": "Payroc Sales Engineering"
+  },
+  "plugins": [
+    {
+      "name": "payroc-certification",
+      "source": "./payroc-certification",
+      "description": "Build partner Certification Scripts (HTML + Markdown + PDF) from a Solution Design .md: UAT test scenarios for all Payroc APIs plus Worldnet direct API and hosted pages, Test Tags for log lookup, and blocked / follow-up tracking.",
+      "version": "0.1.0"
+    }
+  ],
+  "description": "Claude Code plugins for Payroc Sales Engineering: certification script builder, SD-driven scoping and pre-review checks."
+}
