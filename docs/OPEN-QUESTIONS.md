@@ -2,7 +2,14 @@
 
 Collected from each scenario file's `openQuestions`. Resolve with the Payroc API / platform owners, then update the scenario JSON and remove the entry.
 
-**Highest priority:** which request field is indexed in Splunk (drives `tagField` for every endpoint) and the 24-character limit on Apple Pay / Worldnet order ids (Test Tag budget).
+## FLAGGED - follow up before pilot
+
+1. **Splunk Test Tag field (open):** confirm which request field is indexed in Splunk (orderId? customer reference? Idempotency-Key? a trace header?). Update `tagField` in the scenario JSON files; every generated script currently shows a "Tag field TBC" flag. Owner: Chris Jennings with API/platform team.
+2. **Limited UAT triggers (open):** many scenarios have no documented UAT decline / AVS / CVV / partial approval / 3DS / device trigger. They are shown as "Trigger TBC" (`triggerTbc`, set automatically from the scenario's `testData` wording) and listed below.
+
+Both flags are defined in `scripts/certlib.py` (`FLAGS`); remove an entry there once resolved and the banner disappears from newly built scripts.
+
+**Context:** which request field is indexed in Splunk (drives `tagField` for every endpoint) and the 24-character limit on Apple Pay / Worldnet order ids (Test Tag budget).
 
 
 ## Authentication

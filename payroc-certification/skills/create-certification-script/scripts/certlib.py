@@ -35,6 +35,15 @@ def _skill_map_labels():
 SKILL_MAP_LABELS = _skill_map_labels()
 
 
+TBC_RX = re.compile(r"confirm with payroc|documented at|not documented|not fully documented|undocumented|uat trigger", re.I)
+
+# Items still to be confirmed with Payroc owners. Shown in every generated script and listed in the .md front matter.
+FLAGS = [
+    {"id": "splunk-tag-field", "text": "Splunk Test Tag field not yet confirmed: the request field named under each endpoint is a placeholder until the platform team confirms which field is indexed in Splunk."},
+    {"id": "uat-triggers", "text": "UAT triggers are limited: scenarios marked 'Trigger TBC' have no documented UAT decline / AVS / CVV / partial-approval / 3DS / device trigger yet. Agree an alternative with Payroc before running them."},
+]
+
+
 def load_catalog():
     sections = []
     seen = set()
@@ -52,8 +61,9 @@ def load_catalog():
                 raise ValueError("duplicate scenario id across catalogue: " + sc["id"])
             seen.add(sc["id"])
             sc["section"] = sid
+            sc["triggerTbc"] = bool(TBC_RX.search(sc.get("testData") or ""))
         sections.append(data)
-    return {"version": VERSION, "sections": sections}
+    return {"version": VERSION, "sections": sections, "flags": FLAGS}
 
 
 # ---------------------------------------------------------------- SD parsing
@@ -265,7 +275,9 @@ def render_md(catalog, state):
          'generated_at: "%s"' % datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z"),
          "scenarios_total: %d" % total,
          "counts: " + json.dumps({"pass": 0, "fail": 0, "blocked": 0, "follow_up": 0, "not_run": total, "na": 0}),
-         "verified_in_logs: 0", "---", "", NOTICE, "", "# %s - Certification Script" % (m["partner"] or "Partner"), ""]
+         "verified_in_logs: 0",
+         "pending_confirmation: " + json.dumps([f["id"] for f in catalog.get("flags", [])]), "---", "", NOTICE,
+         "> **Pending confirmation:** " + " ".join(f["text"] for f in catalog.get("flags", [])), "", "# %s - Certification Script" % (m["partner"] or "Partner"), ""]
     for sec in catalog["sections"]:
         scs = [sc for sc in sec["scenarios"] if sc["id"] in inc]
         if not scs:
@@ -280,6 +292,8 @@ def render_md(catalog, state):
             if eps:
                 L += ["- endpoints: " + ", ".join("%s %s" % (e["method"], e["path"]) for e in eps),
                       "- tag_field: " + (eps[0].get("tagField") or "n/a")]
+            if sc.get("triggerTbc"):
+                L.append("- trigger_status: tbc")
             if sc.get("expectedStatus"):
                 L.append("- expected_http_status: %s" % sc["expectedStatus"])
             if sc.get("objective"):

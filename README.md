@@ -8,6 +8,12 @@ Covers every Payroc API workflow (boarding, hosted fields, HPP, payment links, C
 equipment, gateway, funding, reporting/events), cross-cutting auth/errors/security/go-live, plus the **Worldnet direct API and Worldnet hosted pages**.
 Worldnet GoChip SDK and eComm plugins are out of scope.
 
+## Try it locally (no marketplace needed)
+```bash
+claude --plugin-dir ./payroc-certification        # loads the plugin for this session; commands appear as /payroc-certification:cert-new etc.
+python3 payroc-certification/skills/create-certification-script/scripts/build-cert.py <sd.md> --out ./out   # or run the scripts directly
+```
+
 ## Install (Payroc SEs and certifiers)
 
 ```text
@@ -26,6 +32,9 @@ Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURIT
 
 Without Claude (partners, or anyone): open the generated `.html` in Chrome/Edge. **Import SD (.md)** tailors the script in the browser; **Autosave .html / .md / .pdf**
 write all three files as you work. Hand the `.md` to any AI assistant to help fill in evidence, then **Import results** to bring it back.
+
+## Known pending items
+Generated scripts carry a "Draft - pending confirmation" banner until these are resolved (see [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md)): the **Splunk Test Tag field** is not yet confirmed, and **UAT triggers are limited** (affected scenarios show "Trigger TBC").
 
 ## How the flow works
 1. SE finishes the SD and shares its `.md`. `cert-new` produces the script (also: `--template-only` for the full catalogue).

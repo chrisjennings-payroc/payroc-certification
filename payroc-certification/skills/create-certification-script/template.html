@@ -100,6 +100,7 @@
   .scn-title{flex:1; font-weight:600; font-size:14.5px; color:var(--ink);}
   .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:0.02em; white-space:nowrap;}
   .pill.required{background:#E4F7EF; color:var(--green);} .pill.conditional{background:var(--amber-bg); color:var(--amber);} .pill.recommended{background:#EEF1F5; color:var(--ink-soft);}
+  .pill.tbc{background:#FDEDEC; color:var(--red);}
   .pill.wn{background:#F2FDFA; color:var(--green); border:1px solid #BFE8D9;}
   .status-select{font-family:inherit; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:8px; padding:4px 6px; background:#fff;}
   .scn-body{display:none; font-size:14px; padding:4px 18px 16px; border-top:1px solid var(--border);}
@@ -420,6 +421,7 @@ function scenarioHtml(sc) {
   h += '<div class="scn-head" data-action="toggle-scn"><input type="checkbox" data-action="quick-pass" title="Mark as passed"' + (st === 'pass' ? ' checked' : '') + '>';
   h += '<span class="scn-id">' + esc(sc.id) + '</span><span class="scn-title">' + esc(titleOf(sc)) + '</span>';
   if (sc.platform === 'worldnet') h += '<span class="pill wn">Worldnet</span>';
+  if (sc.triggerTbc) h += '<span class="pill tbc" title="No documented UAT trigger yet">Trigger TBC</span>';
   h += '<span class="pill ' + esc(tier) + '">' + esc(tier) + '</span><span class="verified-flag">&#10003; verified</span>';
   h += '<select class="status-select" data-action="status">' + STATUSES.map(function (s) { return '<option value="' + s[0] + '"' + (s[0] === st ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></div>';
   h += '<div class="scn-body">';
@@ -433,7 +435,7 @@ function scenarioHtml(sc) {
   if (sc.pitfalls) h += '<h4>Watch for</h4><div>' + esc(sc.pitfalls) + '</div>';
   var rq = requestText(sc);
   if (rq) h += '<h4>Example request body</h4><pre class="code-block" data-rq="' + esc(sc.id) + '">' + esc(rq) + '</pre><button class="btn secondary small" data-action="copy-rq">Copy body</button>' + (sc.platform !== 'worldnet' && sc.endpoints && sc.endpoints[0] ? ' <button class="btn secondary small" data-action="copy-curl">Copy as cURL</button>' : '');
-  h += '<div class="tagrow"><b>Test Tag</b> <code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="small-note">Increment on a re-run so each run is distinct.</span></div>';
+  h += '<div class="tagrow"><b>Test Tag</b> <code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="small-note">Increment on a re-run so each run is distinct.</span> <span class="pill tbc" title="Indexed Splunk field not yet confirmed">Tag field TBC</span></div>';
   h += '<div class="evgrid">';
   h += '<div class="field"><label>HTTP status</label><input data-field="http" value="' + esc(r.http || '') + '"></div>';
   h += '<div class="field"><label>Timestamp (UTC)</label><div class="row-btn" style="display:flex;gap:6px"><input data-field="ts" value="' + esc(r.ts || '') + '"><button class="btn secondary small" data-action="now">Now</button></div></div>';
@@ -501,6 +503,7 @@ function render() {
     '<div class="bar-row"><div class="small-note" id="as-detail"></div><div class="bar-actions"><button class="btn secondary small" id="imp-sd">Import SD (.md)</button><button class="btn secondary small" id="imp-res">Import results (.md / .json / .csv)</button><button class="btn secondary small" id="dl-csv">Results CSV template</button></div></div>' +
     '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and .pdf.</div>' +
     '<input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden></div>');
+  if ((CATALOG.flags || []).length) app.push('<div class="callout warn"><strong>Draft - pending confirmation with Payroc</strong><ol>' + CATALOG.flags.map(function (f) { return '<li>' + esc(f.text) + '</li>'; }).join('') + '</ol></div>');
   app.push('<div class="callout instructions"><strong>How to record a test</strong><ol><li>Open a scenario, copy its <b>Test Tag</b> and send it in the field shown under Endpoints (so Payroc can find your call in the logs).</li><li>Run the call in <b>UAT</b> and paste the response into &ldquo;Paste a response&rdquo;, or fill the evidence fields.</li><li>Set the result: Pass, Fail, <b>Blocked</b> or <b>Needs follow-up</b> (add a reason). Anything blocked appears in the Blockers table for Payroc.</li><li>Keep autosave on and send the saved files back to your Payroc contact. Never paste real card numbers or secrets.</li></ol></div>');
   var tn = STATE.tailor.notes || [];
   var srcLine = STATE.tailor.sdProvided ? 'Scope generated from <b>' + esc(STATE.meta.sdFile || 'the imported Solution Design') + '</b>.' : '<b>No Solution Design imported</b> &mdash; showing the full catalogue. Use &ldquo;Import SD (.md)&rdquo; to tailor it to the partner.';
@@ -594,8 +597,10 @@ function certToMarkdown() {
   L.push('scenarios_total: ' + c.total);
   L.push('counts: ' + JSON.stringify({ pass: c.pass, fail: c.fail, blocked: c.blocked, follow_up: c.follow_up, not_run: c.not_run, na: c.na }));
   L.push('verified_in_logs: ' + c.verified);
+  L.push('pending_confirmation: ' + JSON.stringify((CATALOG.flags || []).map(function (f) { return f.id; })));
   L.push('---', '');
   L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; use the `test_tag` value exactly as written in the request field named by `tag_field`; never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.', '');
+  L.push('> **Pending confirmation:** ' + (CATALOG.flags || []).map(function (f) { return f.text; }).join(' '), '');
   L.push('# ' + (m.partner || 'Partner') + ' - Certification Script', '');
   includedBySection().forEach(function (g) {
     L.push('<!-- cert:section=' + g.sec.section + ' -->', '## ' + g.sec.label, '');
@@ -605,6 +610,7 @@ function certToMarkdown() {
       L.push('- tier: ' + tierOf(sc)); L.push('- platform: ' + (sc.platform || 'payroc'));
       L.push('- status: ' + r.status); L.push('- test_tag: ' + tagOf(sc.id));
       var eps = (sc.endpoints || []); if (eps.length) { L.push('- endpoints: ' + eps.map(function (e) { return e.method + ' ' + e.path; }).join(', ')); L.push('- tag_field: ' + (eps[0].tagField || 'n/a')); }
+      if (sc.triggerTbc) L.push('- trigger_status: tbc');
       if (sc.expectedStatus) L.push('- expected_http_status: ' + sc.expectedStatus);
       if (sc.objective) L.push('- objective: ' + sc.objective);
       L.push('', '**Steps**', ''); stepsOf(sc).forEach(function (s, i) { L.push((i + 1) + '. ' + s); });
