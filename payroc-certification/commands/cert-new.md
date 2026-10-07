@@ -12,7 +12,7 @@ Create a Certification Script from the Solution Design at: $ARGUMENTS
    Show the SE which sections are in/out, which platform (Payroc / Worldnet) each uses, and any SD follow-ups
    (unresolved fields). Mention that Worldnet GoChip SDK and eComm plugins are intentionally not covered.
 3. Build: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/create-certification-script/scripts/build-cert.py" <sd.md> --out <folder>`
-   (default output: the folder containing the SD). Report the two files written and the Cert Run ID.
+   (default output: the folder containing the SD). Report the two files written. Pass `--project-number <N>` if the SE gives the Integration Project Number, otherwise remind them to enter it in the page header (it prefixes every Test Tag).
 4. Run `review-cert.py` on the new `.html` and report anything it flags.
 5. Tell the SE the next steps: open the `.html` in Chrome/Edge, enable autosave for `.html` and `.md`, then share
    the files with the partner. Do not edit scenario content here; see `docs/SCENARIO-AUTHORING.md` for catalogue changes.

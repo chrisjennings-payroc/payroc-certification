@@ -42,7 +42,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_tag_length_budget(self):
         longest = max(len(sc["id"]) for s in self.catalog["sections"] for sc in s["scenarios"])
-        tag = certlib.run_id("Abcdefghijkl") + "-" + "X" * longest + "-99"
+        tag = "123456789012" + "-" + "X" * longest + "-99"   # 12-char project number
         self.assertLessEqual(len(tag), 24, tag)
 
 
@@ -91,7 +91,8 @@ class BuildTests(unittest.TestCase):
             md_ids = re.findall(r"<!-- cert:scenario=([A-Za-z0-9-]+) -->", md)
             self.assertEqual(sorted(md_ids), sorted(st["tailor"]["included"]))
             self.assertIn("document: payroc-certification-script", md)
-            self.assertIn("ACMECO", st["meta"]["certRunId"])
+            self.assertEqual(st["meta"]["projectNumber"], "")
+            self.assertIn("integration_project_number", md)
         finally:
             shutil.rmtree(out)
 

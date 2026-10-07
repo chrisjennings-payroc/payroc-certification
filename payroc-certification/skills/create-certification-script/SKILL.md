@@ -31,7 +31,7 @@ Payroc*, the certification script lists *the tests that prove it* in UAT.
 - Unresolved SD fields become "Needs follow-up" items. The SD's Worldnet SDK/plugin section is noted as out of certification scope.
 
 ## Test identification
-Test Tag = `{CertRunID}-{ScenarioID}-{attempt}` (<= 24 chars). The partner sends it in the request field shown for each endpoint (`tagField`) so the
+Test Tag = `{IntegrationProjectNumber}-{ScenarioID}-{attempt}` (<= 24 chars). The partner sends it in the request field shown for each endpoint (`tagField`) so the
 certification team can search it in Splunk. Confirm the indexed field with the platform team (see `docs/SCENARIO-AUTHORING.md`).
 
 ## Never

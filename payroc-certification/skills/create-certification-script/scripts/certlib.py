@@ -209,15 +209,6 @@ def tailor(catalog, sd):
 
 
 # ---------------------------------------------------------------- state / output
-def slug(s):
-    return (re.sub(r"[^A-Z0-9]+", "", str(s or "").upper())[:6]) or "PARTNER"
-
-
-def run_id(partner, today=None):
-    today = today or datetime.date.today()
-    return "%s%s" % (slug(partner), today.strftime("%y%m%d"))
-
-
 def build_state(catalog, sd=None, sd_name="", overrides=None):
     tl = tailor(catalog, sd)
     fr = sd["front"] if sd else {}
@@ -225,11 +216,9 @@ def build_state(catalog, sd=None, sd_name="", overrides=None):
     meta = {
         "partner": partner or "", "contact": fr.get("partner_contact") or "", "se": fr.get("prepared_by") or "",
         "reviewDate": "", "sdFile": sd_name, "sdVersion": fr.get("template_version") or "", "env": "UAT",
-        "certRunId": run_id(partner), "splunkTemplate": 'index=<INDEX> "{tag}"', "mode": "partner", "signoff": {},
+        "projectNumber": "", "splunkTemplate": 'index=<INDEX> "{tag}"', "mode": "partner", "signoff": {},
     }
     meta.update(overrides or {})
-    if overrides and "partner" in overrides and "certRunId" not in overrides:
-        meta["certRunId"] = run_id(meta["partner"])
     return {"meta": meta, "tailor": tl, "results": {}, "custom": [], "manualInclude": {}, "manualExclude": {}, "manual": [], "collapsed": {}}
 
 
@@ -284,7 +273,7 @@ def render_md(catalog, state):
     total = sum(1 for s in catalog["sections"] for sc in s["scenarios"] if sc["id"] in inc)
     L = ["---", "document: payroc-certification-script", 'template_version: "%s"' % VERSION,
          "partner: " + _q(m["partner"]), "partner_contact: " + _q(m["contact"]), "payroc_se: " + _q(m["se"]),
-         "cert_run_id: " + _q(m["certRunId"]), "environment: " + _q(m["env"]), "review_date: " + _q(m["reviewDate"]),
+         "integration_project_number: " + _q(m["projectNumber"]), "environment: " + _q(m["env"]), "review_date: " + _q(m["reviewDate"]),
          "sd_source: " + _q(m["sdFile"]),
          'generated_at: "%s"' % datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z"),
          "scenarios_total: %d" % total,
@@ -301,7 +290,7 @@ def render_md(catalog, state):
         L += ["<!-- cert:section=%s -->" % sec["section"], "## %d. %s" % (num, sec["label"]), ""]
         for sc in scs:
             eps = sc.get("endpoints") or []
-            tag = "%s-%s-1" % (m["certRunId"], sc["id"])
+            tag = "%s-%s-1" % (m["projectNumber"] or "PROJECT", sc["id"])
             L += ["<!-- cert:scenario=%s -->" % sc["id"], "### %s - %s" % (sc["id"], sc["title"]), "",
                   "- tier: " + override.get(sc["id"], sc["tier"]), "- platform: " + (sc.get("platform") or "payroc"),
                   "- status: not_run", "- test_tag: " + tag]

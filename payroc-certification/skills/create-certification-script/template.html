@@ -113,6 +113,7 @@
   .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:0.02em; white-space:nowrap;}
   .pill.required{background:#E4F7EF; color:var(--green);} .pill.conditional{background:var(--amber-bg); color:var(--amber);} .pill.recommended{background:#EEF1F5; color:var(--ink-soft);}
   .pill.tbc{background:#FDEDEC; color:var(--red);}
+  .pill.tbc:empty{display:none;}
   .pill.wn{background:#F2FDFA; color:var(--green); border:1px solid #BFE8D9;}
   .status-select{font-family:inherit; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:8px; padding:4px 6px; background:#fff;}
   .scn-body{display:none; font-size:14px; padding:4px 18px 16px; border-top:1px solid var(--border);}
@@ -126,6 +127,14 @@
   .editable{cursor:text; border-radius:4px; min-height:1.2em;}
   .editable:hover{outline:1px dashed var(--border); outline-offset:2px;}
   .editable:focus{outline:2px solid var(--blue); outline-offset:2px; background:#fff;}
+  .steps{margin:12px 0;}
+  .step{display:flex; gap:12px; padding:10px 0; border-top:1px solid var(--border);}
+  .step-n{width:24px; height:24px; border-radius:50%; background:var(--blue); color:#fff; font-weight:700; font-size:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;}
+  .step-body{flex:1; min-width:0;}
+  .step-help{font-size:12.5px; color:var(--ink-soft); margin:2px 0 6px;}
+  .tbcnote{color:var(--amber); font-weight:600;}
+  details.more{margin-top:6px;} details.more summary{cursor:pointer; font-size:12.5px; color:var(--blue-mid); font-weight:600;}
+  .paste{display:flex; gap:8px; align-items:flex-start;} .paste textarea{flex:1;}
   .tagrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--info-bg); border:1px solid var(--info-border); border-radius:10px; padding:8px 12px; margin:10px 0;}
   .tagrow code{background:#fff;}
   .tagrow input[type=number]{width:56px; padding:3px 6px; border:1px solid var(--border); border-radius:6px; font:inherit;}
@@ -309,19 +318,20 @@ function tailor(catalog, sd) {
 // </tailor>
 
 function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }); }
-function slug(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6) || 'PARTNER'; }
-function ymd(d) { d = d || new Date(); return String(d.getFullYear()).slice(2) + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
-// Tag budget: Run ID (<=12) + '-' + scenario id (<=6) + '-' + attempt must stay <= 24 chars (Apple Pay / Worldnet order id limit).
-function runId(partner) { return slug(partner) + ymd(); }
+// Test Tag = {Integration Project Number}-{Scenario ID}-{attempt}; keep it <= 24 chars (Apple Pay / Worldnet order id limit).
+function tagWarn(id) {
+  if (!STATE.meta.projectNumber) return 'Enter the Integration Project Number in the header';
+  var n = tagOf(id).length; return n > 24 ? 'Tag is ' + n + ' characters (max 24) - shorten the project number' : '';
+}
 
 function initState() {
   if (!STATE.meta) STATE.meta = {};
   var m = STATE.meta;
-  ['partner', 'contact', 'se', 'reviewDate', 'sdFile', 'sdVersion', 'env', 'certRunId', 'splunkTemplate'].forEach(function (k) { if (m[k] == null) m[k] = ''; });
+  ['partner', 'contact', 'se', 'reviewDate', 'sdFile', 'sdVersion', 'env', 'projectNumber', 'splunkTemplate'].forEach(function (k) { if (m[k] == null) m[k] = ''; });
   if (!m.env) m.env = 'UAT';
   if (!m.splunkTemplate) m.splunkTemplate = 'index=<INDEX> "{tag}"';
   if (!m.mode) m.mode = 'partner';
-  if (!m.certRunId) m.certRunId = runId(m.partner);
+  if (!m.projectNumber && m.certRunId) m.projectNumber = m.certRunId; // earlier drafts
   m.signoff = m.signoff || {};
   if (!STATE.tailor) STATE.tailor = tailor(CATALOG, null);
   STATE.results = STATE.results || {};
@@ -353,7 +363,7 @@ function isIncluded(sc) {
   return t.included.indexOf(sc.id) >= 0 || !!STATE.manualInclude[sc.id] || hasResults(sc.id);
 }
 function tierOf(sc) { return (STATE.tailor.tierOverride && STATE.tailor.tierOverride[sc.id]) || sc.tier; }
-function tagOf(id) { return STATE.meta.certRunId + '-' + id + '-' + (res(id).attempt || 1); }
+function tagOf(id) { return (STATE.meta.projectNumber || 'PROJECT') + '-' + id + '-' + (res(id).attempt || 1); }
 function fieldVal(sc, f) { var r = STATE.results[sc.id]; return (r && r.edits && r.edits[f] != null) ? r.edits[f] : null; }
 function stepsOf(sc) { var v = fieldVal(sc, 'steps'); return v != null ? v.split('\n').filter(function (x) { return x.trim(); }) : (sc.steps || []); }
 function expectedOf(sc) { var v = fieldVal(sc, 'expected'); return v != null ? v : (sc.expected || ''); }
@@ -397,7 +407,7 @@ function renderMasthead() {
   function f(label, path, ph, type) { return '<div><div class="meta-label">' + label + '</div><input class="meta-input" data-bind="meta.' + path + '" type="' + (type || 'text') + '" placeholder="' + esc(ph || '') + '" value="' + esc(getPath(STATE, 'meta.' + path)) + '"></div>'; }
   $('#mast-meta').innerHTML =
     f('Partner / ISV', 'partner', 'Partner name') + f('Partner contact', 'contact', 'Name, email') + f('Payroc SE', 'se', 'Sales engineer') + f('Review date', 'reviewDate', '', 'date') +
-    f('Cert Run ID', 'certRunId', 'PARTNERYYMMDD') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
+    f('Integration Project Number', 'projectNumber', 'e.g. 12345') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
     f('Solution Design file', 'sdFile', 'Imported SD file') + f('SD template version', 'sdVersion', '');
   $('#mast-meta select').value = m.env || 'UAT';
   $('#title-partner').textContent = m.partner || 'Partner';
@@ -448,17 +458,23 @@ function scenarioHtml(sc) {
   if (sc.pitfalls) h += '<h4>Watch for</h4><div>' + esc(sc.pitfalls) + '</div>';
   var rq = requestText(sc);
   if (rq) h += '<h4>Example request body</h4><pre class="code-block" data-rq="' + esc(sc.id) + '">' + esc(rq) + '</pre><button class="btn secondary small" data-action="copy-rq">Copy body</button>' + (sc.platform !== 'worldnet' && sc.endpoints && sc.endpoints[0] ? ' <button class="btn secondary small" data-action="copy-curl">Copy as cURL</button>' : '');
-  h += '<div class="tagrow"><b>Test Tag</b> <code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="small-note">Increment on a re-run so each run is distinct.</span> <span class="pill tbc" title="Indexed Splunk field not yet confirmed">Tag field TBC</span></div>';
-  h += '<div class="evgrid">';
+  var tf = sc.endpoints && sc.endpoints[0] && sc.endpoints[0].tagField;
+  h += '<div class="steps">';
+  h += '<div class="step"><div class="step-n">1</div><div class="step-body"><b>Send the test</b><div class="step-help">Put this tag in ' + (tf ? '<code>' + esc(tf) + '</code>' : 'the order / reference field') + ' of your request. Payroc uses it to find this exact call in the logs.' + ((CATALOG.flags || []).some(function (f) { return f.id === 'splunk-tag-field'; }) ? ' <span class="tbcnote">Payroc is still confirming the exact field.</span>' : '') + '</div>' +
+    '<div class="tagrow"><code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Running it again? Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="pill tbc" data-tagwarn>' + esc(tagWarn(sc.id)) + '</span></div></div></div>';
+  h += '<div class="step"><div class="step-n">2</div><div class="step-body"><b>Paste what came back</b><div class="step-help">Paste the response (and the status line if you have it). We fill in step 3 for you. Card numbers and secrets are masked.</div>' +
+    '<div class="paste"><textarea data-paste placeholder="Paste the Payroc response here"></textarea><button class="btn secondary small" data-action="parse-paste">Fill in details</button></div></div></div>';
+  h += '<div class="step"><div class="step-n">3</div><div class="step-body"><b>Confirm the result</b><div class="step-help">Payroc matches these details to the log entry. Edit anything that looks wrong, then set the result at the top of this card.</div><div class="evgrid">';
   h += '<div class="field"><label>HTTP status</label><input data-field="http" value="' + esc(r.http || '') + '"></div>';
-  h += '<div class="field"><label>Timestamp (UTC)</label><div class="row-btn" style="display:flex;gap:6px"><input data-field="ts" value="' + esc(r.ts || '') + '"><button class="btn secondary small" data-action="now">Now</button></div></div>';
-  h += '<div class="field"><label>Idempotency-Key</label><div style="display:flex;gap:6px"><input data-field="idem" value="' + esc(r.idem || '') + '"><button class="btn secondary small" data-action="gen-uuid">New</button></div></div>';
-  h += '<div class="field"><label>Payroc resource ID' + ((sc.evidence && sc.evidence.length) ? ' (' + esc(sc.evidence.join(', ')) + ')' : '') + '</label><input data-field="resourceId" value="' + esc(r.resourceId || '') + '"></div>';
-  h += '<div class="field"><label>Response / correlation ID</label><input data-field="corrId" value="' + esc(r.corrId || '') + '"></div>';
-  h += '<div class="field"><label>MID / terminal used</label><input data-field="mid" value="' + esc(r.mid || '') + '"></div>';
-  h += '<div class="field span3"><label>Notes</label><textarea rows="2" data-field="notes">' + esc(r.notes || '') + '</textarea></div></div>';
-  h += '<div class="reasonbox"><div class="field"><label>Reason (required for Blocked / Needs follow-up)</label><textarea rows="2" data-field="reason">' + esc(r.reason || '') + '</textarea></div></div>';
-  h += '<details class="paste"><summary class="small-note">Paste a response or log line to auto-fill the fields above</summary><textarea data-paste placeholder="Paste the Payroc response (JSON), optionally preceded by the HTTP status line and headers. Secrets and card numbers are masked."></textarea><button class="btn secondary small" data-action="parse-paste">Extract</button></details>';
+  h += '<div class="field"><label>Time of call (UTC)</label><div style="display:flex;gap:6px"><input data-field="ts" value="' + esc(r.ts || '') + '"><button class="btn secondary small" data-action="now">Now</button></div></div>';
+  h += '<div class="field"><label>Payroc ID from the response' + ((sc.evidence && sc.evidence.length) ? ' (' + esc(sc.evidence.join(', ')) + ')' : '') + '</label><input data-field="resourceId" value="' + esc(r.resourceId || '') + '"></div></div>';
+  h += '<details class="more"><summary>More details (optional)</summary><div class="evgrid">' +
+    '<div class="field"><label>Idempotency-Key you sent</label><div style="display:flex;gap:6px"><input data-field="idem" value="' + esc(r.idem || '') + '"><button class="btn secondary small" data-action="gen-uuid">New</button></div></div>' +
+    '<div class="field"><label>Response / correlation ID</label><input data-field="corrId" value="' + esc(r.corrId || '') + '"></div>' +
+    '<div class="field"><label>MID / terminal used</label><input data-field="mid" value="' + esc(r.mid || '') + '"></div></div></details>';
+  h += '<div class="field" style="margin-top:8px"><label>Notes</label><textarea rows="2" data-field="notes">' + esc(r.notes || '') + '</textarea></div>';
+  h += '<div class="reasonbox"><div class="field"><label>Why is this blocked or waiting? (required)</label><textarea rows="2" data-field="reason">' + esc(r.reason || '') + '</textarea></div></div>';
+  h += '</div></div></div>';
   h += '<div class="reviewer-only reviewer-box"><label><input type="checkbox" data-field="verified"' + (r.verified ? ' checked' : '') + '> Verified in logs</label><div class="field" style="margin-top:6px"><label>Reviewer note</label><input data-field="reviewNote" value="' + esc(r.reviewNote || '') + '"></div></div>';
   h += '<div style="margin-top:10px;display:flex;gap:8px">' + (sc.custom ? '<button class="btn secondary small" data-action="del-custom">Delete scenario</button>' : '<button class="btn secondary small" data-action="exclude">Exclude from this script</button>') + '</div>';
   h += '</div></div>';
@@ -608,7 +624,7 @@ function certToMarkdown() {
   L.push('document: payroc-certification-script');
   L.push('template_version: "' + VERSION + '"');
   L.push('partner: ' + q(m.partner)); L.push('partner_contact: ' + q(m.contact)); L.push('payroc_se: ' + q(m.se));
-  L.push('cert_run_id: ' + q(m.certRunId)); L.push('environment: ' + q(m.env)); L.push('review_date: ' + q(m.reviewDate));
+  L.push('integration_project_number: ' + q(m.projectNumber)); L.push('environment: ' + q(m.env)); L.push('review_date: ' + q(m.reviewDate));
   L.push('sd_source: ' + q(m.sdFile)); L.push('generated_at: "' + new Date().toISOString() + '"');
   L.push('scenarios_total: ' + c.total);
   L.push('counts: ' + JSON.stringify({ pass: c.pass, fail: c.fail, blocked: c.blocked, follow_up: c.follow_up, not_run: c.not_run, na: c.na }));
@@ -702,7 +718,7 @@ function buildPdf() {
   if (!window.jspdf || !window.jspdf.jsPDF) return null;
   var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' }), W = 612, H = 792, M = 46, y = 0, page = 1;
   function t(s) { return String(s == null ? '' : s).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/[^\x09\x0A\x20-\x7E -ÿ]/g, '?'); }
-  function header() { doc.setFillColor(0, 29, 78); doc.rect(0, 0, W, 34, 'F'); doc.setFillColor(0, 224, 184); doc.roundedRect(M, 9, 16, 16, 3, 3, 'F'); doc.setTextColor(0, 29, 78); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('P', M + 5, 21); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text('PAYROC  |  CERTIFICATION SCRIPT  |  ' + t(STATE.meta.certRunId), M + 24, 21); y = 52; }
+  function header() { doc.setFillColor(0, 29, 78); doc.rect(0, 0, W, 34, 'F'); doc.setFillColor(0, 224, 184); doc.roundedRect(M, 9, 16, 16, 3, 3, 'F'); doc.setTextColor(0, 29, 78); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('P', M + 5, 21); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text('PAYROC  |  CERTIFICATION SCRIPT  |  ' + t(STATE.meta.projectNumber || ''), M + 24, 21); y = 52; }
   function footer() { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120); doc.text('Confidential - page ' + page, W - M, H - 20, { align: 'right' }); }
   function np() { footer(); doc.addPage(); page++; header(); }
   function need(h) { if (y + h > H - 40) np(); }
@@ -714,7 +730,7 @@ function buildPdf() {
   header();
   var m = STATE.meta, c = counts(), b = overallBadge(c);
   para((m.partner || 'Partner') + ' - Certification Script', 18, true, [0, 29, 78]); y += 2;
-  para('Status: ' + b[0] + '   |   Environment: ' + m.env + '   |   Cert Run ID: ' + m.certRunId, 9, false, [75, 85, 102]);
+  para('Status: ' + b[0] + '   |   Environment: ' + m.env + '   |   Integration Project Number: ' + (m.projectNumber || '-'), 9, false, [75, 85, 102]);
   para('Payroc SE: ' + (m.se || '-') + '   |   Partner contact: ' + (m.contact || '-') + '   |   Review date: ' + (m.reviewDate || '-') + '   |   SD: ' + (m.sdFile || '-'), 9, false, [75, 85, 102]);
   para('Passed ' + c.pass + ' / ' + c.total + '   Failed ' + c.fail + '   Blocked ' + c.blocked + '   Follow-up ' + c.follow_up + '   Verified in logs ' + c.verified, 10, true, [0, 81, 194]); y += 6;
   var colors = { pass: [0, 168, 136], fail: [192, 51, 43], blocked: [192, 51, 43], follow_up: [180, 83, 9], na: [140, 140, 140], not_run: [120, 120, 120] };
@@ -862,7 +878,7 @@ document.addEventListener('click', function (ev) {
     copy(lines.join('\n'), 'Evidence CSV copied'); return;
   }
 });
-function refreshRequest(card) { var pre = $('pre.code-block', card); if (pre) pre.textContent = requestText(scenarioById(card.getAttribute('data-id'))); var tg = $('[data-tag]', card); if (tg) tg.textContent = tagOf(card.getAttribute('data-id')); }
+function refreshRequest(card) { var pre = $('pre.code-block', card); if (pre) pre.textContent = requestText(scenarioById(card.getAttribute('data-id'))); var tg = $('[data-tag]', card); if (tg) tg.textContent = tagOf(card.getAttribute('data-id')); var tw = $('[data-tagwarn]', card); if (tw) { var w = tagWarn(card.getAttribute('data-id')); tw.textContent = w; tw.style.display = w ? '' : 'none'; } }
 
 document.addEventListener('change', function (ev) {
   var t = ev.target, card = cardOf(t);
@@ -879,8 +895,8 @@ document.addEventListener('input', function (ev) {
   var t = ev.target, card = cardOf(t);
   if (t.matches('[data-bind]')) {
     var p = t.getAttribute('data-bind'); setPath(STATE, p, t.value);
-    if (p === 'meta.partner') { $('#title-partner').textContent = t.value || 'Partner'; if (!STATE.meta._runIdEdited) { STATE.meta.certRunId = runId(t.value); var ci = $('[data-bind="meta.certRunId"]'); if (ci) ci.value = STATE.meta.certRunId; } }
-    if (p === 'meta.certRunId') { STATE.meta._runIdEdited = true; $$('.scn').forEach(refreshRequest); renderSplunk(); }
+    if (p === 'meta.partner') $('#title-partner').textContent = t.value || 'Partner';
+    if (p === 'meta.projectNumber') { $$('.scn').forEach(refreshRequest); renderSplunk(); }
     if (p === 'meta.splunkTemplate') renderSplunk();
     autosave.schedule(); return;
   }
@@ -927,7 +943,7 @@ function importSD(name, md) {
   STATE.tailor = tailor(CATALOG, sd);
   var m = STATE.meta, fr = sd.front;
   m.sdFile = name; m.sdVersion = fr.template_version || '';
-  if (fr.partner) { m.partner = fr.partner; if (!m._runIdEdited) m.certRunId = runId(m.partner); }
+  if (fr.partner) m.partner = fr.partner;
   if (fr.partner_contact) m.contact = fr.partner_contact;
   if (fr.prepared_by && !m.se) m.se = fr.prepared_by;
   STATE.manualInclude = {}; render(); autosave.schedule();

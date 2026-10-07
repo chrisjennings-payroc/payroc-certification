@@ -60,4 +60,4 @@ Field rules:
 
 ## Tags
 
-Test Tag = `{CertRunID}-{ScenarioID}-{attempt}`, e.g. `ACMECO261006-CNP-01-1` (Run ID = first 6 letters of partner + YYMMDD). Keep the whole tag <= 24 characters: Apple Pay and Worldnet order ids are limited to 24.
+Test Tag = `{IntegrationProjectNumber}-{ScenarioID}-{attempt}`, e.g. `12345-CNP-01-1`. Keep the whole tag <= 24 characters: Apple Pay and Worldnet order ids are limited to 24.
