@@ -320,8 +320,11 @@ function tailor(catalog, sd) {
 function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }); }
 // Test Tag = {Integration Project Number}-{Scenario ID}-{attempt}; keep it <= 24 chars (Apple Pay / Worldnet order id limit).
 function tagWarn(id) {
-  if (!STATE.meta.projectNumber) return 'Enter the Integration Project Number in the header';
-  var n = tagOf(id).length; return n > 24 ? 'Tag is ' + n + ' characters (max 24) - shorten the project number' : '';
+  var sc = scenarioById(id); if (sc && byIdem(sc)) return '';
+  var pn = STATE.meta.projectNumber;
+  if (!pn) return 'Enter the Integration Project Number in the header';
+  if (!/^INTG-\d+$/.test(pn)) return 'Project number should look like INTG-12345';
+  var n = tagOf(id).length; return n > 24 ? 'Tag is ' + n + ' characters (max 24)' : '';
 }
 
 function initState() {
@@ -407,7 +410,7 @@ function renderMasthead() {
   function f(label, path, ph, type) { return '<div><div class="meta-label">' + label + '</div><input class="meta-input" data-bind="meta.' + path + '" type="' + (type || 'text') + '" placeholder="' + esc(ph || '') + '" value="' + esc(getPath(STATE, 'meta.' + path)) + '"></div>'; }
   $('#mast-meta').innerHTML =
     f('Partner / ISV', 'partner', 'Partner name') + f('Partner contact', 'contact', 'Name, email') + f('Payroc SE', 'se', 'Sales engineer') + f('Review date', 'reviewDate', '', 'date') +
-    f('Integration Project Number', 'projectNumber', 'e.g. 12345') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
+    f('Integration Project Number', 'projectNumber', 'INTG-12345') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
     f('Solution Design file', 'sdFile', 'Imported SD file') + f('SD template version', 'sdVersion', '');
   $('#mast-meta select').value = m.env || 'UAT';
   $('#title-partner').textContent = m.partner || 'Partner';
@@ -426,15 +429,20 @@ function renderToc(groups) {
   $('#toc').innerHTML = h;
 }
 
+var HOSTMAP = [['api.uat.payroc.com', 'api.payroc.com'], ['identity.uat.payroc.com', 'identity.payroc.com'], ['payments.uat.payroc.com', 'payments.payroc.com'], ['cdn.uat.payroc.com', 'cdn.payroc.com'], ['testpayments.worldnettps.com', 'payments.worldnettps.com']];
+function envText(t) { t = String(t == null ? '' : t); if (STATE.meta.env !== 'Production') return t; HOSTMAP.forEach(function (m) { t = t.split(m[0]).join(m[1]); }); return t; }
+function apiBase() { return STATE.meta.env === 'Production' ? 'https://api.payroc.com' : 'https://api.uat.payroc.com'; }
+function byIdem(sc) { return sc.identifyBy === 'idempotency_key'; }
+function lookupOf(sc) { return byIdem(sc) ? (res(sc.id).idem || '') : tagOf(sc.id); }
 function endpointHtml(sc) {
   return (sc.endpoints || []).map(function (e) {
-    return '<div class="ep"><span class="method m-' + esc(e.method) + '">' + esc(e.method) + '</span><code>' + esc(e.path) + '</code>' + (e.tagField ? '<span class="small-note">Test Tag goes in <code>' + esc(e.tagField) + '</code></span>' : '') + '</div>';
+    return '<div class="ep"><span class="method m-' + esc(e.method) + '">' + esc(e.method) + '</span><code>' + esc(envText(e.path)) + '</code>' + (e.tagField && !byIdem(sc) ? '<span class="small-note">Test Tag goes in <code>' + esc(e.tagField) + '</code></span>' : '') + '</div>';
   }).join('');
 }
 function requestText(sc) {
   if (!sc.requestExample) return '';
   var r = res(sc.id);
-  return JSON.stringify(sc.requestExample, null, 2).replace(/\{\{TEST_TAG\}\}/g, tagOf(sc.id)).replace(/\{\{IDEMPOTENCY_KEY\}\}/g, r.idem || '<uuid-v4>');
+  return envText(JSON.stringify(sc.requestExample, null, 2)).replace(/\{\{TEST_TAG\}\}/g, tagOf(sc.id)).replace(/\{\{IDEMPOTENCY_KEY\}\}/g, r.idem || '<uuid-v4>');
 }
 
 function scenarioHtml(sc) {
@@ -451,25 +459,32 @@ function scenarioHtml(sc) {
   if (sc.objective) h += '<p>' + esc(sc.objective) + '</p>';
   if (sc.custom) h += '<h4>Title</h4><div class="editable" contenteditable="true" spellcheck="false" data-edit="title">' + esc(titleOf(sc)) + '</div>';
   var eps = endpointHtml(sc); if (eps) h += '<h4>Endpoints</h4>' + eps;
-  h += '<h4>Steps</h4><ol class="editable" contenteditable="true" spellcheck="false" data-edit="steps">' + stepsOf(sc).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+  h += '<h4>Steps</h4><ol class="editable" contenteditable="true" spellcheck="false" data-edit="steps">' + stepsOf(sc).map(function (s) { return '<li>' + esc(envText(s)) + '</li>'; }).join('') + '</ol>';
   h += '<h4>Expected result</h4><div class="editable" contenteditable="true" spellcheck="false" data-edit="expected">' + esc(expectedOf(sc)) + '</div>';
   if (sc.expectedStatus) h += '<div class="small-note">Expected HTTP status: <b>' + esc(sc.expectedStatus) + '</b></div>';
   if (sc.testData) h += '<h4>Test data</h4><div>' + esc(sc.testData) + '</div>';
   if (sc.pitfalls) h += '<h4>Watch for</h4><div>' + esc(sc.pitfalls) + '</div>';
   var rq = requestText(sc);
   if (rq) h += '<h4>Example request body</h4><pre class="code-block" data-rq="' + esc(sc.id) + '">' + esc(rq) + '</pre><button class="btn secondary small" data-action="copy-rq">Copy body</button>' + (sc.platform !== 'worldnet' && sc.endpoints && sc.endpoints[0] ? ' <button class="btn secondary small" data-action="copy-curl">Copy as cURL</button>' : '');
-  var tf = sc.endpoints && sc.endpoints[0] && sc.endpoints[0].tagField;
+  var tf = sc.endpoints && sc.endpoints[0] && sc.endpoints[0].tagField, idm = byIdem(sc);
+  var tbc = (CATALOG.flags || []).some(function (f) { return f.id === 'splunk-tag-field'; }) ? ' <span class="tbcnote">Payroc is still confirming which field is searchable.</span>' : '';
+  var idHints = (sc.evidence || []).filter(function (x) { return /(^id$|Id$|Reference$|^resource id$|ids?$)/i.test(x) && !/idempotency/i.test(x); });
   h += '<div class="steps">';
-  h += '<div class="step"><div class="step-n">1</div><div class="step-body"><b>Send the test</b><div class="step-help">Put this tag in ' + (tf ? '<code>' + esc(tf) + '</code>' : 'the order / reference field') + ' of your request. Payroc uses it to find this exact call in the logs.' + ((CATALOG.flags || []).some(function (f) { return f.id === 'splunk-tag-field'; }) ? ' <span class="tbcnote">Payroc is still confirming the exact field.</span>' : '') + '</div>' +
-    '<div class="tagrow"><code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Running it again? Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="pill tbc" data-tagwarn>' + esc(tagWarn(sc.id)) + '</span></div></div></div>';
-  h += '<div class="step"><div class="step-n">2</div><div class="step-body"><b>Paste what came back</b><div class="step-help">Paste the response (and the status line if you have it). We fill in step 3 for you. Card numbers and secrets are masked.</div>' +
+  if (idm) {
+    h += '<div class="step"><div class="step-n">1</div><div class="step-body"><b>Send the test with a new Idempotency-Key</b><div class="step-help">This call has no free-text field for a tag, so Payroc finds it by the <b>Idempotency-Key</b> instead. Generate a UUID v4, send it in the <code>Idempotency-Key</code> header, and keep it here.' + tbc + '</div>' +
+      '<div class="tagrow"><div class="field" style="flex:1;min-width:260px"><label>Idempotency-Key you sent (UUID v4)</label><input data-field="idem" value="' + esc(r.idem || '') + '"></div> <button class="btn secondary small" data-action="gen-uuid">Generate</button> <button class="btn secondary small" data-action="copy-idem">Copy</button></div></div></div>';
+  } else {
+    h += '<div class="step"><div class="step-n">1</div><div class="step-body"><b>Send the test with this tag</b><div class="step-help">Put this tag in ' + (tf ? '<code>' + esc(tf) + '</code>' : 'the order / reference field') + ' of your request. Payroc uses it to find this call in the logs.' + tbc + '</div>' +
+      '<div class="tagrow"><code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Running it again? Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="pill tbc" data-tagwarn>' + esc(tagWarn(sc.id)) + '</span></div></div></div>';
+  }
+  h += '<div class="step"><div class="step-n">2</div><div class="step-body"><b>Paste the response <span class="small-note">(optional shortcut)</span></b><div class="step-help">Paste the response and click &ldquo;Fill in details&rdquo; to auto-fill step 3. Or skip this and type step 3 yourself. Card numbers and secrets are masked.</div>' +
     '<div class="paste"><textarea data-paste placeholder="Paste the Payroc response here"></textarea><button class="btn secondary small" data-action="parse-paste">Fill in details</button></div></div></div>';
-  h += '<div class="step"><div class="step-n">3</div><div class="step-body"><b>Confirm the result</b><div class="step-help">Payroc matches these details to the log entry. Edit anything that looks wrong, then set the result at the top of this card.</div><div class="evgrid">';
+  h += '<div class="step"><div class="step-n">3</div><div class="step-body"><b>Check the details</b><div class="step-help">Payroc matches these to the log entry. Then set the result at the top of this card.</div><div class="evgrid">';
   h += '<div class="field"><label>HTTP status</label><input data-field="http" value="' + esc(r.http || '') + '"></div>';
   h += '<div class="field"><label>Time of call (UTC)</label><div style="display:flex;gap:6px"><input data-field="ts" value="' + esc(r.ts || '') + '"><button class="btn secondary small" data-action="now">Now</button></div></div>';
-  h += '<div class="field"><label>Payroc ID from the response' + ((sc.evidence && sc.evidence.length) ? ' (' + esc(sc.evidence.join(', ')) + ')' : '') + '</label><input data-field="resourceId" value="' + esc(r.resourceId || '') + '"></div></div>';
+  h += '<div class="field"><label>Resource ID in the response body</label><input data-field="resourceId" value="' + esc(r.resourceId || '') + '"><div class="small-note">' + (idHints.length ? 'Look for: ' + idHints.map(function (x) { return '<code>' + esc(x) + '</code>'; }).join(' ') : 'The ID of what this call created or read, if the response has one.') + '</div></div></div>';
   h += '<details class="more"><summary>More details (optional)</summary><div class="evgrid">' +
-    '<div class="field"><label>Idempotency-Key you sent</label><div style="display:flex;gap:6px"><input data-field="idem" value="' + esc(r.idem || '') + '"><button class="btn secondary small" data-action="gen-uuid">New</button></div></div>' +
+    (idm ? '' : '<div class="field"><label>Idempotency-Key you sent</label><div style="display:flex;gap:6px"><input data-field="idem" value="' + esc(r.idem || '') + '"><button class="btn secondary small" data-action="gen-uuid">New</button></div></div>') +
     '<div class="field"><label>Response / correlation ID</label><input data-field="corrId" value="' + esc(r.corrId || '') + '"></div>' +
     '<div class="field"><label>MID / terminal used</label><input data-field="mid" value="' + esc(r.mid || '') + '"></div></div></details>';
   h += '<div class="field" style="margin-top:8px"><label>Notes</label><textarea rows="2" data-field="notes">' + esc(r.notes || '') + '</textarea></div>';
@@ -535,6 +550,7 @@ function render() {
     '<div class="bar-actions"><button class="btn secondary" id="imp-res">Import results</button><button class="btn secondary small" id="dl-csv">CSV template</button></div><div class="small-note" style="margin-top:6px">Accepts .md, .json or .csv, matched by scenario id or Test Tag.</div></div>' +
     '<div class="tool-card reviewer-card reviewer-only" style="grid-column:1 / -1"><h3>Payroc setup (internal)</h3><div>Re-tailor this script to a Solution Design. Recorded results are kept.</div><div class="bar-actions"><button class="btn secondary" id="imp-sd">Import Solution Design (.md)</button></div></div>' +
     '</div><input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden>');
+  if (STATE.meta.env === 'Production') app.push('<div class="callout warn"><strong>Production endpoints shown.</strong> Certification tests are designed for UAT. Run something in Production only if Payroc has asked you to, and never use test cards or trigger values there.</div>');
   if ((CATALOG.flags || []).length) app.push('<div class="callout warn"><strong>Draft - pending confirmation with Payroc</strong><ol>' + CATALOG.flags.map(function (f) { return '<li>' + esc(f.text) + '</li>'; }).join('') + '</ol></div>');
   app.push('<div class="callout instructions"><strong>How to record a test</strong><ol><li>Open a scenario, copy its <b>Test Tag</b> and send it in the field shown under Endpoints (so Payroc can find your call in the logs).</li><li>Run the call in <b>UAT</b> and paste the response into &ldquo;Paste a response&rdquo;, or fill the evidence fields.</li><li>Set the result: Pass, Fail, <b>Blocked</b> or <b>Needs follow-up</b> (add a reason). Anything blocked appears in the Blockers table for Payroc.</li><li>Keep autosave on and send the saved files back to your Payroc contact. Never paste real card numbers or secrets.</li></ol></div>');
   var tn = STATE.tailor.notes || [];
@@ -579,11 +595,11 @@ function renderSplunk() {
   allScenarios().forEach(function (sc) {
     if (!isIncluded(sc)) return;
     var r = res(sc.id); if (r.status === 'not_run') return;
-    var tag = tagOf(sc.id); tags.push(tag);
+    var tag = lookupOf(sc) || '(no identifier recorded)'; if (lookupOf(sc)) tags.push(tag);
     rows.push('<tr><td>' + esc(sc.id) + '</td><td><code>' + esc(tag) + '</code></td><td>' + esc(r.ts || '') + '</td><td>' + esc(r.http || '') + '</td><td>' + esc(r.resourceId || '') + '</td><td>' + esc(STATUS_LABEL[r.status]) + '</td><td><button class="btn secondary small" data-action="copy-search" data-tag="' + esc(tag) + '">Copy search</button></td></tr>');
   });
   var tpl = STATE.meta.splunkTemplate || '"{tag}"';
-  el.innerHTML = '<table class="spl"><thead><tr><th>Scenario</th><th>Test Tag</th><th>Timestamp (UTC)</th><th>HTTP</th><th>Resource ID</th><th>Result</th><th></th></tr></thead><tbody>' + (rows.join('') || '<tr><td colspan="7" class="small-note">No recorded runs yet.</td></tr>') + '</tbody></table>' +
+  el.innerHTML = '<table class="spl"><thead><tr><th>Scenario</th><th>Search for</th><th>Timestamp (UTC)</th><th>HTTP</th><th>Resource ID</th><th>Result</th><th></th></tr></thead><tbody>' + (rows.join('') || '<tr><td colspan="7" class="small-note">No recorded runs yet.</td></tr>') + '</tbody></table>' +
     '<button class="btn secondary small" data-action="copy-all-search">Copy combined search</button> <button class="btn secondary small" data-action="copy-evidence-csv">Copy evidence as CSV</button>';
   el._tags = tags; el._tpl = tpl;
 }
@@ -631,7 +647,7 @@ function certToMarkdown() {
   L.push('verified_in_logs: ' + c.verified);
   L.push('pending_confirmation: ' + JSON.stringify((CATALOG.flags || []).map(function (f) { return f.id; })));
   L.push('---', '');
-  L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; use the `test_tag` value exactly as written in the request field named by `tag_field`; never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.', '');
+  L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; where `identify_by` is `test_tag`, use the `test_tag` value exactly as written in the request field named by `tag_field`; where it is `idempotency_key`, send a fresh UUID v4 in the Idempotency-Key header and record it in `idempotency_key` (the UUID is what Payroc searches for); never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.', '');
   L.push('> **Pending confirmation:** ' + (CATALOG.flags || []).map(function (f) { return f.text; }).join(' '), '');
   L.push('# ' + (m.partner || 'Partner') + ' - Certification Script', '');
   includedBySection().forEach(function (g) {
@@ -640,7 +656,7 @@ function certToMarkdown() {
       var r = res(sc.id);
       L.push('<!-- cert:scenario=' + sc.id + ' -->', '### ' + sc.id + ' - ' + titleOf(sc), '');
       L.push('- tier: ' + tierOf(sc)); L.push('- platform: ' + (sc.platform || 'payroc'));
-      L.push('- status: ' + r.status); L.push('- test_tag: ' + tagOf(sc.id));
+      L.push('- status: ' + r.status); L.push('- identify_by: ' + (sc.identifyBy || 'test_tag')); L.push('- test_tag: ' + tagOf(sc.id));
       var eps = (sc.endpoints || []); if (eps.length) { L.push('- endpoints: ' + eps.map(function (e) { return e.method + ' ' + e.path; }).join(', ')); L.push('- tag_field: ' + (eps[0].tagField || 'n/a')); }
       if (sc.triggerTbc) L.push('- trigger_status: tbc');
       if (sc.expectedStatus) L.push('- expected_http_status: ' + sc.expectedStatus);
@@ -837,7 +853,7 @@ function setStatusFor(card, st) {
 function curlOf(sc) {
   var e = sc.endpoints[0], r = res(sc.id);
   var body = sc.requestExample ? " \\\n  -d '" + requestText(sc).replace(/'/g, "'\\''") + "'" : '';
-  return 'curl -X ' + e.method + ' "https://api.uat.payroc.com' + e.path + '" \\\n  -H "Authorization: Bearer $PAYROC_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: ' + (r.idem || '<uuid-v4>') + '"' + body;
+  return 'curl -X ' + e.method + ' "' + apiBase() + e.path + '" \\\n  -H "Authorization: Bearer $PAYROC_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: ' + (r.idem || '<uuid-v4>') + '"' + body;
 }
 document.addEventListener('click', function (ev) {
   var t = ev.target, a = t.closest('[data-action]'); if (!a) return;
@@ -850,6 +866,7 @@ document.addEventListener('click', function (ev) {
   if (act === 'copy-tag') { copy(tagOf(card.getAttribute('data-id')), 'Test Tag copied'); return; }
   if (act === 'copy-rq') { copy($('pre.code-block', card).textContent, 'Request body copied'); return; }
   if (act === 'copy-curl') { copy(curlOf(scenarioById(card.getAttribute('data-id'))), 'cURL copied'); return; }
+  if (act === 'copy-idem') { copy($('[data-field=idem]', card).value, 'Idempotency-Key copied'); return; }
   if (act === 'now') { var r = res(card.getAttribute('data-id')); r.ts = new Date().toISOString(); $('[data-field=ts]', card).value = r.ts; changed(true); return; }
   if (act === 'gen-uuid') { var r2 = res(card.getAttribute('data-id')); r2.idem = uuid(); $('[data-field=idem]', card).value = r2.idem; refreshRequest(card); changed(true); return; }
   if (act === 'parse-paste') {
@@ -889,7 +906,8 @@ document.addEventListener('change', function (ev) {
   if (t.matches('[data-owner]')) { res(t.getAttribute('data-owner')).owner = t.value; autosave.schedule(); return; }
   if (t.matches('[data-target]')) { res(t.getAttribute('data-target')).target = t.value; autosave.schedule(); return; }
   if (t.matches('[data-mstatus]')) { STATE.manual[+t.getAttribute('data-mstatus')].status = t.value; autosave.schedule(); return; }
-  if (t.matches('[data-bind="meta.env"]')) { STATE.meta.env = t.value; autosave.schedule(); return; }
+  if (t.matches('[data-bind="meta.env"]')) { STATE.meta.env = t.value; render(); autosave.schedule(); return; }
+  if (t.matches('[data-bind="meta.projectNumber"]') && /^\d+$/.test(t.value.trim())) { t.value = 'INTG-' + t.value.trim(); STATE.meta.projectNumber = t.value; $$('.scn').forEach(refreshRequest); renderSplunk(); autosave.schedule(); return; }
 });
 document.addEventListener('input', function (ev) {
   var t = ev.target, card = cardOf(t);

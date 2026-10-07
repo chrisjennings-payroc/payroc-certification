@@ -46,11 +46,16 @@ def _skill_map_labels():
 SKILL_MAP_LABELS = _skill_map_labels()
 
 
+# Request fields where a partner can put a free-text Test Tag. The Idempotency-Key is a UUID v4, so it can never carry the tag:
+# scenarios without one of these fields are identified by the Idempotency-Key value itself.
+TAGGABLE_RX = re.compile(r"^(order\.orderId|orderId|ORDERID|merchantReference|MERCHANTREF|uniqueReference|UNIQUEREF|customerReference|description|secureTokenId|paymentPlanId|subscriptionId)$")
+
 TBC_RX = re.compile(r"confirm with payroc|documented at|not documented|not fully documented|undocumented|uat trigger", re.I)
 
 # Items still to be confirmed with Payroc owners. Shown in every generated script and listed in the .md front matter.
 FLAGS = [
     {"id": "splunk-tag-field", "text": "Splunk Test Tag field not yet confirmed: the request field named under each endpoint is a placeholder until the platform team confirms which field is indexed in Splunk."},
+    {"id": "response-ids-splunk", "text": "Searchable identifiers not yet confirmed: the Test Tag (or, where a call has no free-text field, the Idempotency-Key UUID) is the primary lookup. Whether response IDs such as paymentId are also searchable in Splunk is still to be confirmed; they are captured as secondary evidence."},
     {"id": "uat-triggers", "text": "UAT triggers are limited: scenarios marked 'Trigger TBC' have no documented UAT decline / AVS / CVV / partial-approval / 3DS / device trigger yet. Agree an alternative with Payroc before running them."},
 ]
 
@@ -75,6 +80,9 @@ def load_catalog():
             seen.add(sc["id"])
             sc["section"] = sid
             sc["triggerTbc"] = bool(TBC_RX.search(sc.get("testData") or ""))
+            eps = sc.get("endpoints") or []
+            tf = (eps[0].get("tagField") if eps else None) or ""
+            sc["identifyBy"] = "test_tag" if TAGGABLE_RX.match(tf.strip()) else "idempotency_key"
         sections.append(data)
     return {"version": VERSION, "sections": sections, "flags": FLAGS}
 
@@ -260,7 +268,7 @@ def _q(v):
 NOTICE = ("> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. "
           "Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines "
           "(`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. "
-          "Rules: keep ids and markers unchanged; use the `test_tag` value exactly as written in the request field named by `tag_field`; "
+          "Rules: keep ids and markers unchanged; where `identify_by` is `test_tag`, use the `test_tag` value exactly as written in the request field named by `tag_field`; where it is `idempotency_key`, send a fresh UUID v4 in the Idempotency-Key header and record it in `idempotency_key` (the UUID is what Payroc searches for); "
           "never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | "
           "follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.")
 
@@ -293,7 +301,7 @@ def render_md(catalog, state):
             tag = "%s-%s-1" % (m["projectNumber"] or "PROJECT", sc["id"])
             L += ["<!-- cert:scenario=%s -->" % sc["id"], "### %s - %s" % (sc["id"], sc["title"]), "",
                   "- tier: " + override.get(sc["id"], sc["tier"]), "- platform: " + (sc.get("platform") or "payroc"),
-                  "- status: not_run", "- test_tag: " + tag]
+                  "- status: not_run", "- identify_by: " + sc.get("identifyBy", "test_tag"), "- test_tag: " + tag]
             if eps:
                 L += ["- endpoints: " + ", ".join("%s %s" % (e["method"], e["path"]) for e in eps),
                       "- tag_field: " + (eps[0].get("tagField") or "n/a")]

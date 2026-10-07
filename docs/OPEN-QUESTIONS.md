@@ -5,9 +5,10 @@ Collected from each scenario file's `openQuestions`. Resolve with the Payroc API
 ## FLAGGED - follow up before pilot
 
 1. **Splunk Test Tag field (open):** confirm which request field is indexed in Splunk (orderId? customer reference? Idempotency-Key? a trace header?). Update `tagField` in the scenario JSON files; every generated script currently shows a "Tag field TBC" flag. Owner: Chris Jennings with API/platform team.
-2. **Limited UAT triggers (open):** many scenarios have no documented UAT decline / AVS / CVV / partial approval / 3DS / device trigger. They are shown as "Trigger TBC" (`triggerTbc`, set automatically from the scenario's `testData` wording) and listed below.
+2. **What is searchable in Splunk (open):** the Test Tag (or the Idempotency-Key UUID where a call has no free-text field) is the primary lookup. Confirm whether response IDs (paymentId, refundId, etc.) and correlation IDs are also searchable; they are captured as secondary evidence meanwhile. Also confirm that the Idempotency-Key is logged.
+3. **Limited UAT triggers (open):** many scenarios have no documented UAT decline / AVS / CVV / partial approval / 3DS / device trigger. They are shown as "Trigger TBC" (`triggerTbc`, set automatically from the scenario's `testData` wording) and listed below.
 
-Both flags are defined in `scripts/certlib.py` (`FLAGS`); remove an entry there once resolved and the banner disappears from newly built scripts.
+All three flags are defined in `scripts/certlib.py` (`FLAGS`); remove an entry there once resolved and the banner disappears from newly built scripts.
 
 **Context:** Collected from each scenario file's `openQuestions`.
 

@@ -52,12 +52,11 @@ Field rules:
 - `appliesWhen`: list of lowercase keywords. A `conditional` scenario is included when ANY keyword appears (case-insensitive
   substring) in the SD section's checked decisions, in-scope endpoint rows, or free text. `required`/`recommended` scenarios
   use `[]` and are included whenever the section is in scope.
-- `tagField`: the request field the partner must populate with the Test Tag so the run can be found in Splunk. Default
-  proposal: the merchant-supplied order/reference field of that endpoint; if none exists use `Idempotency-Key` (suffix).
+- `tagField`: the request field where the partner can put the Test Tag so the call can be found in Splunk. Use it ONLY for a merchant-supplied free-text field (e.g. `order.orderId`, `merchantReference`, `description`, or a merchant-chosen id such as `secureTokenId`). The `Idempotency-Key` is a UUID v4 and cannot carry the tag: scenarios without a free-text field are identified by the Idempotency-Key value itself (the builder sets `identifyBy: idempotency_key` automatically from `tagField`; see `TAGGABLE_RX` in `scripts/certlib.py`).
 - `requestExample`: sanitized, never real card numbers except documented UAT test cards; use `{{TEST_TAG}}` where the tag goes
   and `{{IDEMPOTENCY_KEY}}` for the key.
 - `evidence`: the response fields the certifier needs to find the call (resource ids, status).
 
 ## Tags
 
-Test Tag = `{IntegrationProjectNumber}-{ScenarioID}-{attempt}`, e.g. `12345-CNP-01-1`. Keep the whole tag <= 24 characters: Apple Pay and Worldnet order ids are limited to 24.
+Test Tag = `{IntegrationProjectNumber}-{ScenarioID}-{attempt}`, where the Integration Project Number looks like `INTG-12345`, e.g. `INTG-12345-CNP-01-1`. Keep the whole tag <= 24 characters: Apple Pay and Worldnet order ids are limited to 24.
