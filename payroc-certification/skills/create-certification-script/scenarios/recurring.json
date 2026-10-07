@@ -1,0 +1,525 @@
+{
+  "section": "recurring",
+  "label": "8.2g Recurring and Tokens",
+  "sourceSkills": [
+    "set-up-a-payment-plan",
+    "manage-subscriptions",
+    "save-a-payment-method",
+    "create-single-use-token"
+  ],
+  "openQuestions": [
+    "Worldnet equivalents (credentials, paymentPlans, subscriptions endpoints) not authored in this file",
+    "Subscription failure/suspension (gateway) test triggers not documented",
+    "REC-06 MIT schema details"
+  ],
+  "scenarios": [
+    {
+      "id": "TOK-01",
+      "title": "Create single-use token",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a single-use token is created (30 minute, one use).",
+      "steps": [
+        "POST /v1/processing-terminals/{processingTerminalId}/single-use-tokens with channel and source card.",
+        "Capture token and expiresAt."
+      ],
+      "expected": "HTTP 201 with token and expiresAt; card number masked.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/single-use-tokens",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "source": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "cvv": "123",
+              "expiryDate": "1230"
+            },
+            "cardholderName": "Sarah Hazel Hopper"
+          }
+        }
+      },
+      "evidence": [
+        "token",
+        "expiresAt",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "TOK-02",
+      "title": "Create secure (reusable) token",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "secure token",
+        "tokeniz",
+        "saved card",
+        "recurring",
+        "subscription"
+      ],
+      "objective": "Payroc verifies a card is vaulted without a transaction.",
+      "steps": [
+        "POST /v1/processing-terminals/{processingTerminalId}/secure-tokens with source card, a secureTokenId and mitAgreement if used for MIT.",
+        "Persist secureTokenId and token."
+      ],
+      "expected": "HTTP 201 with secureTokenId and token (starts 296753).",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/secure-tokens",
+          "tagField": "secureTokenId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "secureTokenId": "{{TEST_TAG}}",
+        "mitAgreement": "unscheduled",
+        "source": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1230",
+              "cvv": "234"
+            },
+            "cardholderName": "Sarah Hopper"
+          }
+        }
+      },
+      "evidence": [
+        "secureTokenId",
+        "token",
+        "status"
+      ],
+      "pitfalls": "secureTokenId is merchant-assigned; the Test Tag fits here. mitAgreement values come from the schema."
+    },
+    {
+      "id": "TOK-03",
+      "title": "Tokenize during a sale",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "tokeniz",
+        "credential on file",
+        "saved card"
+      ],
+      "objective": "Payroc verifies credentialOnFile.tokenize on a payment returns a token.",
+      "steps": [
+        "POST /v1/payments with credentialOnFile tokenize true."
+      ],
+      "expected": "HTTP 201 with paymentId and secure token details.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        },
+        "credentialOnFile": {
+          "tokenize": true
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "secureToken"
+      ]
+    },
+    {
+      "id": "TOK-04",
+      "title": "Retrieve, update and delete a secure token",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "secure token",
+        "update card",
+        "delete token"
+      ],
+      "objective": "Payroc verifies token lifecycle operations.",
+      "steps": [
+        "GET the token.",
+        "POST update-account with a single-use token (flat body type/token).",
+        "DELETE the token (HTTP 204) and confirm later use fails."
+      ],
+      "expected": "200 on retrieve/update; 204 on delete.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/processing-terminals/{processingTerminalId}/secure-tokens/{secureTokenId}",
+          "tagField": "secureTokenId"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/secure-tokens/{secureTokenId}/update-account",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "DELETE",
+          "path": "/v1/processing-terminals/{processingTerminalId}/secure-tokens/{secureTokenId}",
+          "tagField": "secureTokenId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "secureTokenId",
+        "HTTP status"
+      ],
+      "pitfalls": "Delete is permanent."
+    },
+    {
+      "id": "TOK-05",
+      "title": "Sale with a secure token",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "secure token",
+        "saved card",
+        "token"
+      ],
+      "objective": "Payroc verifies a stored token can be charged.",
+      "steps": [
+        "POST /v1/payments with paymentMethod secureToken."
+      ],
+      "expected": "HTTP 201; responseCode A.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "secureToken",
+          "token": "{{SECURE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode"
+      ]
+    },
+    {
+      "id": "REC-01",
+      "title": "Create a payment plan",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "payment plan",
+        "subscription",
+        "recurring",
+        "installment"
+      ],
+      "objective": "Payroc verifies a plan template is created.",
+      "steps": [
+        "POST /v1/processing-terminals/{processingTerminalId}/payment-plans with merchant-assigned paymentPlanId, type, frequency, onUpdate, onDelete, recurringOrder."
+      ],
+      "expected": "HTTP 201 with the plan.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-plans",
+          "tagField": "paymentPlanId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "paymentPlanId": "{{TEST_TAG}}",
+        "name": "Monthly Premium",
+        "currency": "USD",
+        "type": "automatic",
+        "frequency": "monthly",
+        "onUpdate": "continue",
+        "onDelete": "complete",
+        "length": 0,
+        "recurringOrder": {
+          "amount": 4999,
+          "description": "Monthly subscription fee"
+        }
+      },
+      "evidence": [
+        "paymentPlanId",
+        "HTTP status"
+      ],
+      "pitfalls": "automatic plans require recurringOrder.amount."
+    },
+    {
+      "id": "REC-02",
+      "title": "Create a subscription",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "subscription",
+        "recurring",
+        "payment plan"
+      ],
+      "objective": "Payroc verifies a subscription links a secure token to a plan.",
+      "steps": [
+        "POST /v1/processing-terminals/{processingTerminalId}/subscriptions with subscriptionId, paymentPlanId, startDate and secureToken."
+      ],
+      "expected": "HTTP 201; currentState.status active with nextDueDate.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/subscriptions",
+          "tagField": "subscriptionId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "subscriptionId": "{{TEST_TAG}}",
+        "paymentPlanId": "{{PLAN_ID}}",
+        "startDate": "{{YYYY-MM-DD}}",
+        "paymentMethod": {
+          "type": "secureToken",
+          "token": "{{SECURE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "subscriptionId",
+        "currentState.status",
+        "nextDueDate"
+      ]
+    },
+    {
+      "id": "REC-03",
+      "title": "Manual subscription payment",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "manual"
+      ],
+      "objective": "Payroc verifies a manual plan collection.",
+      "steps": [
+        "POST /v1/processing-terminals/{processingTerminalId}/subscriptions/{subscriptionId}/pay with order amount, when a payment is due."
+      ],
+      "expected": "HTTP 201 with payment.paymentId.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/subscriptions/{subscriptionId}/pay",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "order": {
+          "amount": 4999,
+          "orderId": "{{TEST_TAG}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "payment.status"
+      ],
+      "pitfalls": "Only once per frequency period."
+    },
+    {
+      "id": "REC-04",
+      "title": "Deactivate and reactivate a subscription",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "subscription",
+        "deactivate",
+        "cancel"
+      ],
+      "objective": "Payroc verifies lifecycle toggles.",
+      "steps": [
+        "POST .../deactivate then .../reactivate (no Idempotency-Key, no body)."
+      ],
+      "expected": "Status cancelled then active.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/processing-terminals/{processingTerminalId}/subscriptions/{subscriptionId}/deactivate",
+          "tagField": "subscriptionId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "subscriptionId",
+        "currentState.status"
+      ]
+    },
+    {
+      "id": "REC-05",
+      "title": "Update a subscription via JSON Patch",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "subscription",
+        "update"
+      ],
+      "objective": "Payroc verifies patch-based updates and restrictions.",
+      "steps": [
+        "PATCH the subscription with replace /recurringOrder/amount.",
+        "Attempt to modify type or frequency and confirm rejection."
+      ],
+      "expected": "Amount update accepted; immutable fields rejected.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/v1/processing-terminals/{processingTerminalId}/subscriptions/{subscriptionId}",
+          "tagField": "subscriptionId"
+        }
+      ],
+      "testData": null,
+      "requestExample": [
+        {
+          "op": "replace",
+          "path": "/recurringOrder/amount",
+          "value": 4500
+        }
+      ],
+      "evidence": [
+        "subscriptionId",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "REC-06",
+      "title": "Merchant-initiated first and subsequent charges (MIT)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "mit",
+        "merchant-initiated",
+        "merchant initiated",
+        "unscheduled",
+        "installment",
+        "standing instruction",
+        "recurring"
+      ],
+      "objective": "Payroc verifies standingInstructions sequencing on stored credentials.",
+      "steps": [
+        "POST /v1/payments with secureToken and order.standingInstructions sequence first.",
+        "POST a later charge with sequence subsequent and referenceDataOfFirstTxn."
+      ],
+      "expected": "Both HTTP 201; responseCode A.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD",
+          "standingInstructions": {
+            "sequence": "first",
+            "processingModel": "recurring"
+          }
+        },
+        "paymentMethod": {
+          "type": "secureToken",
+          "token": "{{SECURE_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId (first)",
+        "paymentId (subsequent)",
+        "standingInstructions"
+      ],
+      "pitfalls": "processingModel values (unscheduled/recurring/installment) and referenceDataOfFirstTxn shape come from the repeat-payments schema; confirm."
+    },
+    {
+      "id": "REC-07",
+      "title": "Delete a payment plan",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "payment plan"
+      ],
+      "objective": "Payroc verifies plan deletion respects onDelete.",
+      "steps": [
+        "DELETE the plan (HTTP 204)."
+      ],
+      "expected": "204; linked subscriptions complete or continue per onDelete.",
+      "expectedStatus": 204,
+      "endpoints": [
+        {
+          "method": "DELETE",
+          "path": "/v1/processing-terminals/{processingTerminalId}/payment-plans/{paymentPlanId}",
+          "tagField": "paymentPlanId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentPlanId",
+        "HTTP status"
+      ],
+      "pitfalls": "Irreversible."
+    }
+  ]
+}

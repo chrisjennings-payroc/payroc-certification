@@ -1,0 +1,480 @@
+{
+  "section": "hpp",
+  "label": "8.2c Hosted Payment Pages",
+  "sourceSkills": [
+    "integrate-hosted-payment-pages",
+    "worldnet-reference"
+  ],
+  "openQuestions": [
+    "HPP-01..06: hash recipe, AMOUNT/DATETIME formats and full RESPONSECODE set live in Payroc skill references not reproduced here; certifier should pull exact values",
+    "HPP-02: UAT decline trigger not documented",
+    "WN-21..29: WN id range chosen to avoid direct-api WN-01..11; reassign if the catalogue collides",
+    "WN HPP production URLs and validation retry policy not documented",
+    "Test Tag length vs ORDERID 24-char limit"
+  ],
+  "scenarios": [
+    {
+      "id": "HPP-01",
+      "title": "HPP sale approved and receipt verified",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies the signed form POST loads the page and the receipt hash is validated.",
+      "steps": [
+        "Compute the request HMAC per the Payroc authenticate-your-requests reference and reproduce the documented example hash first.",
+        "POST the form to /merchant/paymentpage; pay with a test card.",
+        "On the receipt redirect, verify the response hash before trusting RESPONSECODE.",
+        "Persist UNIQUEREF."
+      ],
+      "expected": "Receipt carries RESPONSECODE approval and UNIQUEREF; response hash verifies.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (payments.uat.payroc.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF",
+        "RESPONSECODE",
+        "DATETIME"
+      ],
+      "pitfalls": "Hash recipe, AMOUNT and DATETIME formats must come from the Payroc reference, not memory. Branch on the full RESPONSECODE approval set. ORDERID length limits apply."
+    },
+    {
+      "id": "HPP-02",
+      "title": "HPP declined card",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a decline is handled on the receipt page.",
+      "steps": [
+        "POST the form and pay with the documented decline trigger.",
+        "Verify the response hash; read RESPONSECODE."
+      ],
+      "expected": "RESPONSECODE decline value (D per skill examples); order not fulfilled.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (payments.uat.payroc.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "evidence": [
+        "ORDERID",
+        "RESPONSECODE",
+        "RESPONSETEXT"
+      ]
+    },
+    {
+      "id": "HPP-03",
+      "title": "HPP invalid hash rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a tampered request hash is refused.",
+      "steps": [
+        "POST the form with an incorrect HASH."
+      ],
+      "expected": "The hosted page returns an error and no transaction is created.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (payments.uat.payroc.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "ORDERID",
+        "observed error"
+      ],
+      "pitfalls": "Exact error presentation not documented in the skill."
+    },
+    {
+      "id": "HPP-04",
+      "title": "HPP pre-authorization and capture",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "capture",
+        "authorization"
+      ],
+      "objective": "Payroc verifies preauthpage plus capture via REST using UNIQUEREF.",
+      "steps": [
+        "POST the form to /merchant/preauthpage.",
+        "Persist UNIQUEREF durably.",
+        "POST /v1/payments/{uniqueRef}/capture with Bearer auth."
+      ],
+      "expected": "Receipt approval; capture HTTP 200 with transactionResult approval.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/preauthpage (payments.uat.payroc.com)",
+          "tagField": "ORDERID"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/payments/{uniqueRef}/capture",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF",
+        "HTTP status"
+      ],
+      "pitfalls": "Not available with dual pricing, surcharging or convenience fees."
+    },
+    {
+      "id": "HPP-05",
+      "title": "HPP save card (securecardpage)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "tokeniz",
+        "save card",
+        "saved card",
+        "secure token",
+        "recurring",
+        "subscription"
+      ],
+      "objective": "Payroc verifies card tokenization on the hosted page and durable storage of CARDREFERENCE.",
+      "steps": [
+        "Compute the save-card hash TERMINALID:MERCHANTREF:DATETIME:ACTION:SECRET (no amount); POST to /merchant/securecardpage with ACTION register and STOREDCREDENTIALUSE.",
+        "Verify the receipt hash; persist CARDREFERENCE and MERCHANTREF."
+      ],
+      "expected": "RESPONSECODE A (stored) with CARDREFERENCE.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/securecardpage (payments.uat.payroc.com)",
+          "tagField": "MERCHANTREF"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "MERCHANTREF",
+        "CARDREFERENCE",
+        "RESPONSECODE"
+      ],
+      "pitfalls": "Save-card RESPONSECODE set differs from sale (A/E14/E43/E44). Uses the Secure Token URL receipt setting."
+    },
+    {
+      "id": "HPP-06",
+      "title": "HPP background validation",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "background validation",
+        "validation",
+        "webhook"
+      ],
+      "objective": "Payroc verifies the server-to-server validation POST is received and verified.",
+      "steps": [
+        "Register a public validation URL in Self-Care.",
+        "Complete a sale and verify the webhook signature."
+      ],
+      "expected": "Validation POST received and verified for the transaction.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "(partner validation URL)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF",
+        "received timestamp"
+      ]
+    },
+    {
+      "id": "WN-21",
+      "title": "Worldnet HPP: sale with receipt and hash validation",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies the signed form POST, receipt response hash and UNIQUEREF capture.",
+      "steps": [
+        "Compute SHA-512 hash TERMINALID:ORDERID:AMOUNT:DATETIME:RECEIPTPAGEURL:VALIDATIONURL:SECRET (omit absent fields).",
+        "POST to /merchant/paymentpage; pay with the Worldnet test card.",
+        "Verify response hash TERMINALID:ORDERID:AMOUNT:DATETIME:RESPONSECODE:RESPONSETEXT:SECRET; fulfil only on RESPONSECODE A; store UNIQUEREF."
+      ],
+      "expected": "RESPONSECODE A, UNIQUEREF present, hash verifies.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Worldnet test card Visa Credit 4539858876047062 (test-data-and-uat.md)",
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF",
+        "RESPONSECODE"
+      ],
+      "pitfalls": "Multi-currency terminals add CURRENCY to the hash. DATETIME format DD-MM-YYYY:HH:MM:SS:SSS. ORDERID max 24."
+    },
+    {
+      "id": "WN-22",
+      "title": "Worldnet HPP: decline, referral simulation",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies non-approval responses are handled.",
+      "steps": [
+        "Run HPP sales with amounts ending .01 (declined), .02 (referral), .03 (CVV failure)."
+      ],
+      "expected": "RESPONSECODE D or R; order not fulfilled.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Cent values .01 / .02 / .03 (host simulator)",
+      "evidence": [
+        "ORDERID",
+        "RESPONSECODE"
+      ]
+    },
+    {
+      "id": "WN-23",
+      "title": "Worldnet HPP: background validation",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies the validation URL receives the POST and replies exactly OK.",
+      "steps": [
+        "Enable the Validation URL on the terminal or send VALIDATIONURL.",
+        "Complete a sale; verify hash; reply with plain text OK."
+      ],
+      "expected": "Transaction not flagged not validated or expired.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "(partner validation URL)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF"
+      ],
+      "pitfalls": "Retry cadence is not documented. Not supported for bank transfer."
+    },
+    {
+      "id": "WN-24",
+      "title": "Worldnet HPP: pre-authorization and capture",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "capture",
+        "authorization"
+      ],
+      "objective": "Worldnet verifies preauthpage and capture via REST or Selfcare.",
+      "steps": [
+        "POST to /merchant/preauthpage.",
+        "Capture via PATCH /api/v1/transaction/payments/{uniqueReference}/capture."
+      ],
+      "expected": "Pre-auth approved; capture completes.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/preauthpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/transaction/payments/{uniqueReference}/capture",
+          "tagField": "uniqueReference"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF"
+      ],
+      "pitfalls": "3DS does not support pre-auths."
+    },
+    {
+      "id": "WN-25",
+      "title": "Worldnet HPP: secure token registration",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "tokeniz",
+        "save card",
+        "secure token",
+        "subscription",
+        "recurring"
+      ],
+      "objective": "Worldnet verifies securecardpage registration returns CARDREFERENCE.",
+      "steps": [
+        "POST to /merchant/securecardpage with ACTION register (hash TERMINALID:MERCHANTREF:DATETIME:ACTION:SECRET).",
+        "Verify the response hash and store CARDREFERENCE and MERCHANTREF."
+      ],
+      "expected": "Registration success with CARDREFERENCE.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/securecardpage (testpayments.worldnettps.com)",
+          "tagField": "MERCHANTREF"
+        }
+      ],
+      "testData": "Needs a full Worldnet test account (not shared sandbox)",
+      "evidence": [
+        "MERCHANTREF",
+        "CARDREFERENCE",
+        "RESPONSECODE"
+      ],
+      "pitfalls": "E-codes overlap between token and subscription pages."
+    },
+    {
+      "id": "WN-26",
+      "title": "Worldnet HPP: subscription registration",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "subscription",
+        "recurring",
+        "payment plan"
+      ],
+      "objective": "Worldnet verifies subscriptionpage registration using an existing secure token.",
+      "steps": [
+        "POST to /merchant/subscriptionpage/register with CARDREFERENCE or SECURECARDMERCHANTREF (not both), STARTDATE and plan fields.",
+        "Verify response hash; RESPONSECODE A or C."
+      ],
+      "expected": "Subscription created.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/subscriptionpage/register (testpayments.worldnettps.com)",
+          "tagField": "MERCHANTREF"
+        }
+      ],
+      "testData": "Needs a full Worldnet test account",
+      "evidence": [
+        "MERCHANTREF",
+        "RESPONSECODE"
+      ]
+    },
+    {
+      "id": "WN-27",
+      "title": "Worldnet HPP: 3-D Secure",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure"
+      ],
+      "objective": "Worldnet verifies HPP 3DS is handled by the page when enabled on the terminal.",
+      "steps": [
+        "Enable 3DS on the terminal; send email (mandatory).",
+        "Complete a 3DS sale on the HPP."
+      ],
+      "expected": "Sale completes with authentication result recorded.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "3DS test cards not documented (confirm with Worldnet)",
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF"
+      ]
+    },
+    {
+      "id": "WN-28",
+      "title": "Worldnet HPP: Apple Pay / Google Pay buttons",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "apple pay",
+        "google pay",
+        "wallet"
+      ],
+      "objective": "Worldnet verifies wallet buttons appear and complete on the HPP (Elavon terminals only).",
+      "steps": [
+        "Enable wallets on the terminal (Apple store name and certificate; Google domain).",
+        "Complete a wallet payment from the HPP."
+      ],
+      "expected": "Wallet payment approved on the receipt.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Not documented (confirm with Worldnet)",
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF"
+      ]
+    },
+    {
+      "id": "WN-29",
+      "title": "Worldnet HPP: bank transfer option",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "ach",
+        "pad",
+        "bank transfer"
+      ],
+      "objective": "Worldnet verifies PAYMENTOPTIONS and SECCODE on the shared payment page.",
+      "steps": [
+        "POST with PAYMENTOPTIONS BANK_TRANSFER or CARD_AND_BANK_TRANSFER and SECCODE.",
+        "Complete a bank transfer."
+      ],
+      "expected": "Receipt includes masked bank fields.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/paymentpage (testpayments.worldnettps.com)",
+          "tagField": "ORDERID"
+        }
+      ],
+      "testData": "Bank transfer sandbox data not documented",
+      "evidence": [
+        "ORDERID",
+        "UNIQUEREF"
+      ],
+      "pitfalls": "Bank transfer request hash omits VALIDATIONURL; background validation unsupported."
+    }
+  ]
+}

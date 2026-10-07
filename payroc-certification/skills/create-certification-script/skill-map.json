@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "upstream": {
+    "repo": "payroc/skills",
+    "ref": "main",
+    "url": "https://github.com/payroc/skills/tree/main",
+    "skillsRoot": "plugins/payroc"
+  },
+  "notes": "Maps each Solution Design template section to the upstream Payroc skills that must be current before that section is written. Section ids match template.html. Used by scripts/check-skills.py and (later) the SD builder.",
+  "sections": {
+    "boarding": {
+      "label": "8.1 Boarding & Merchant Management",
+      "skills": [
+        "create-merchant-platform",
+        "create-pricing-intent",
+        "add-processing-account",
+        "add-attachment-to-processing-account"
+      ]
+    },
+    "hosted-fields": {
+      "label": "8.2a Hosted Fields",
+      "skills": [
+        "integrate-hosted-fields"
+      ]
+    },
+    "hpp": {
+      "label": "8.2b Hosted Payment Pages",
+      "skills": [
+        "integrate-hosted-payment-pages"
+      ]
+    },
+    "payment-links": {
+      "label": "8.2c Payment Links",
+      "skills": [
+        "integrate-payment-links"
+      ]
+    },
+    "cloud": {
+      "label": "8.2d Payroc Cloud",
+      "skills": [
+        "integrate-payroc-cloud"
+      ]
+    },
+    "direct-api": {
+      "label": "8.2e Direct API Payments",
+      "skills": [
+        "run-a-card-sale",
+        "run-a-pre-authorization",
+        "run-a-sale-with-3ds",
+        "take-an-ach-payment",
+        "refund-a-card-payment",
+        "refund-an-ach-payment"
+      ]
+    },
+    "wallets": {
+      "label": "8.3 Digital Wallets",
+      "skills": [
+        "integrate-apple-pay",
+        "integrate-google-pay"
+      ]
+    },
+    "recurring": {
+      "label": "8.4 Recurring Billing & Tokenization",
+      "skills": [
+        "set-up-a-payment-plan",
+        "manage-subscriptions",
+        "save-a-payment-method",
+        "create-single-use-token"
+      ]
+    },
+    "verification": {
+      "label": "8.5 Card & Bank Verification",
+      "skills": [
+        "verify-bank-account",
+        "look-up-card-details",
+        "check-ebt-balance"
+      ]
+    },
+    "equipment": {
+      "label": "8.6 Equipment Ordering & Terminal Provisioning",
+      "skills": [
+        "order-a-terminal"
+      ]
+    },
+    "gateway": {
+      "label": "8.7 Gateway / Self-Care Portal Configuration",
+      "skills": []
+    },
+    "funding": {
+      "label": "8.8 Funding (PayFac only)",
+      "skills": [
+        "set-up-a-funding-recipient",
+        "send-funds-to-a-merchant",
+        "view-funding-activity"
+      ]
+    },
+    "reporting": {
+      "label": "8.9 Reporting & Notifications",
+      "skills": [
+        "set-up-event-subscriptions",
+        "view-settlement-batches",
+        "view-settled-transactions",
+        "view-authorizations",
+        "view-disputes",
+        "view-ach-deposits"
+      ]
+    },
+    "worldnet-sdks": {
+      "label": "8.2f Worldnet SDKs, POS & plugins (Worldnet only)",
+      "skills": [],
+      "localSkills": [
+        "worldnet-reference"
+      ]
+    },
+    "card-present-ops": {
+      "label": "8.6b Card-present operational requirements & open questions",
+      "skills": [],
+      "note": "Derived: in scope whenever cloud, equipment or worldnet-sdks is. No upstream skill documents key injection / hardware / terminal management - open questions only."
+    }
+  },
+  "unmappedOk": [
+    "from-ibx"
+  ],
+  "localOnly": [
+    "create-solution-design",
+    "worldnet-reference"
+  ]
+}

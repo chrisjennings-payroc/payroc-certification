@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="cert-template-version" content="0.1.0">
+<title>Certification Script | Payroc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#001D4E; --blue:#0051C2; --blue-mid:#0043A3; --teal:#00E0B8; --green:#00A888; --gray:#BFBFBF;
+    --bg:#F6F8FB; --card:#FFFFFF; --ink:#0B1220; --ink-soft:#4B5566; --border:#E2E8F0;
+    --amber:#B45309; --amber-bg:#FFF7ED; --amber-border:#FDE1B5; --info-bg:#EEF4FF; --info-border:#CFE0FF;
+    --red:#C0332B; --red-bg:#FDEDEC; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); line-height:1.55; font-size:16px;}
+  a{color:var(--blue); text-decoration:none;} a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{font-weight:700; letter-spacing:-0.01em; color:var(--navy);}
+  p{color:var(--ink-soft);}
+  code,.code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; background:#EFF3F8; color:var(--blue-mid); padding:2px 6px; border-radius:6px; font-size:12.5px;}
+  pre.code-block{background:#0B1B3A; color:#DCE7FF; padding:12px 14px; border-radius:10px; font-size:12.5px; overflow:auto; margin:6px 0; white-space:pre-wrap; word-break:break-word; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+
+  /* masthead (matches Solution Design) */
+  .masthead{background:linear-gradient(120deg,var(--navy) 0%,var(--blue-mid) 55%,var(--blue) 100%); color:#fff; padding:48px 40px 32px; position:relative; overflow:hidden;}
+  .masthead::after{content:""; position:absolute; right:-80px; top:-80px; width:320px; height:320px; background:radial-gradient(circle,rgba(0,224,184,0.35),transparent 70%);}
+  .masthead-inner{max-width:1100px; margin:0 auto; position:relative; z-index:1;}
+  .brand-row{display:flex; align-items:center; gap:12px; margin-bottom:24px; opacity:0.92;}
+  .brand-mark{width:30px; height:30px; border-radius:8px; background:var(--teal); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--navy); font-size:15px;}
+  .brand-row span{font-weight:600; letter-spacing:0.02em; font-size:14px; text-transform:uppercase; opacity:0.85;}
+  .doc-title{font-size:34px; font-weight:800; margin:0 0 6px; color:#fff;}
+  .doc-subtitle{font-size:16px; opacity:0.85; margin:0 0 24px; max-width:720px; color:#fff;}
+  .meta-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px 16px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18); border-radius:var(--radius); padding:16px 20px; margin-bottom:12px;}
+  .meta-label{opacity:0.65; text-transform:uppercase; letter-spacing:0.04em; font-size:11px; margin-bottom:4px;}
+  .meta-input{width:100%; background:transparent; border:1px solid transparent; color:#fff; font:inherit; font-weight:600; font-size:14px; padding:2px 4px; border-radius:6px;}
+  .meta-input:hover,.meta-input:focus{border-color:rgba(255,255,255,0.5); outline:none; background:rgba(255,255,255,0.08);}
+  .meta-input option{color:#000;}
+  .meta-input::placeholder{color:rgba(255,255,255,0.45); font-weight:400;}
+
+  .layout{max-width:1240px; margin:0 auto; display:grid; grid-template-columns:250px 1fr; align-items:start;}
+  nav.toc{position:sticky; top:0; height:100vh; overflow-y:auto; padding:28px 16px 40px 32px; font-size:13.5px;}
+  nav.toc a{display:flex; justify-content:space-between; gap:6px; color:var(--ink-soft); padding:6px 10px; border-radius:8px; margin-bottom:2px;}
+  nav.toc a:hover{background:var(--info-bg); color:var(--blue); text-decoration:none;}
+  nav.toc .toc-heading{font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--gray); margin:18px 0 4px 10px;}
+  nav.toc .toc-count{font-size:11px; color:var(--gray);}
+  nav.toc a.done .toc-count{color:var(--green); font-weight:700;}
+  main{padding:28px 40px 80px; max-width:960px;}
+
+  .callout{border-radius:var(--radius); padding:16px 20px; margin:0 0 20px; border:1px solid var(--info-border); background:var(--info-bg); font-size:14px; color:#1e3a6e;}
+  .callout strong{color:var(--navy);} .callout p{margin:6px 0 0; color:inherit;}
+  .callout.instructions{border-left:4px solid var(--blue);}
+  .callout.warn{background:var(--amber-bg); border-color:var(--amber-border); color:var(--amber); border-left:4px solid var(--amber);}
+  .callout ol{margin:6px 0 0; padding-left:20px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:18px 22px; margin-bottom:16px;}
+
+  /* toolbar / autosave */
+  .autosave-bar{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 18px; margin:0 0 16px; font-size:13.5px; color:var(--ink-soft);}
+  .bar-row{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:4px 0;}
+  .autosave-status{display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink);}
+  .autosave-dot{width:9px; height:9px; border-radius:50%; background:var(--gray); flex-shrink:0;}
+  .autosave-dot.on{background:var(--green);} .autosave-dot.cached{background:var(--amber);} .autosave-dot.error{background:var(--red);}
+  .bar-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .btn{border:1px solid var(--blue); background:var(--blue); color:#fff; font-weight:600; font-size:13px; padding:7px 14px; border-radius:8px; cursor:pointer; font-family:inherit;}
+  .btn:hover{background:var(--blue-mid);}
+  .btn.secondary{background:#fff; color:var(--blue);} .btn.secondary:hover{background:var(--info-bg);}
+  .btn.small{padding:4px 10px; font-size:12px;}
+  .restore-banner{display:none; background:var(--info-bg); border:1px solid var(--info-border); color:#1e3a6e; border-radius:var(--radius); padding:12px 18px; margin:0 0 16px; font-size:13.5px; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .restore-banner.show{display:flex;}
+  .fallback{display:none; background:var(--amber-bg); border:1px solid var(--amber-border); color:var(--amber); border-radius:var(--radius); padding:10px 16px; margin:8px 0 0; font-size:13px;}
+  .fallback.show{display:block;}
+  .chip{font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:999px; border:1px solid var(--amber-border); background:var(--amber-bg); color:var(--amber); font-family:inherit; cursor:pointer;}
+  .chip.zero{background:#E4F7EF; border-color:#BFE8D9; color:var(--green); cursor:default;}
+  .mode-toggle{font-family:inherit; font-size:13px; font-weight:600; color:var(--blue-mid); background:#fff; border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;}
+
+  /* dashboard */
+  .dash{display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:14px;}
+  .dash .stat{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; text-align:center;}
+  .dash .stat b{display:block; font-size:22px; color:var(--navy);}
+  .dash .stat span{font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft);}
+  .dash .stat.pass b{color:var(--green);} .dash .stat.fail b{color:var(--red);} .dash .stat.follow b{color:var(--amber);}
+  .progress{height:10px; background:#E8EDF5; border-radius:999px; overflow:hidden; margin:6px 0 4px;}
+  .progress > div{height:100%; background:linear-gradient(90deg,var(--green),var(--teal)); width:0; transition:width .25s;}
+  .badge{display:inline-block; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:#EEF1F5; color:var(--ink-soft);}
+  .badge.ready{background:var(--info-bg); color:var(--blue);} .badge.certified{background:#E4F7EF; color:var(--green);} .badge.progress-b{background:var(--amber-bg); color:var(--amber);}
+
+  /* sections + scenarios */
+  .sec{margin-bottom:34px;}
+  .sec-head{display:flex; align-items:center; justify-content:space-between; gap:14px; border-top:1px solid var(--border); padding-top:22px; margin-bottom:10px; cursor:pointer;}
+  .sec-head h2{margin:0; font-size:22px;}
+  .sec-meta{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink-soft); white-space:nowrap;}
+  .sec.collapsed .sec-body{display:none;}
+  .scn{background:var(--card); border:1px solid var(--border); border-left:4px solid var(--gray); border-radius:12px; margin-bottom:10px;}
+  .scn.s-pass{border-left-color:var(--green);} .scn.s-fail{border-left-color:var(--red);} .scn.s-blocked{border-left-color:var(--red); background:#FFFAF9;}
+  .scn.s-follow_up{border-left-color:var(--amber); background:#FFFCF7;} .scn.s-na{border-left-color:var(--gray); opacity:0.7;}
+  .scn-head{display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer;}
+  .scn-head input[type=checkbox]{width:18px; height:18px; accent-color:var(--green); flex-shrink:0; cursor:pointer;}
+  .scn-id{font-family:ui-monospace,Menlo,monospace; font-size:12px; font-weight:700; color:var(--blue-mid); background:var(--info-bg); padding:2px 8px; border-radius:6px; white-space:nowrap;}
+  .scn-title{flex:1; font-weight:600; font-size:14.5px; color:var(--ink);}
+  .pill{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:0.02em; white-space:nowrap;}
+  .pill.required{background:#E4F7EF; color:var(--green);} .pill.conditional{background:var(--amber-bg); color:var(--amber);} .pill.recommended{background:#EEF1F5; color:var(--ink-soft);}
+  .pill.wn{background:#F2FDFA; color:var(--green); border:1px solid #BFE8D9;}
+  .status-select{font-family:inherit; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:8px; padding:4px 6px; background:#fff;}
+  .scn-body{display:none; font-size:14px; padding:4px 18px 16px; border-top:1px solid var(--border);}
+  .scn.open .scn-body{display:block;}
+  .scn-body h4{margin:14px 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:var(--blue-mid);}
+  .scn-body ol{margin:4px 0; padding-left:22px; font-size:14px;}
+  .scn-body li{margin:3px 0;}
+  .ep{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; margin:3px 0;}
+  .method{font-weight:700; font-family:ui-monospace,monospace; font-size:11.5px; padding:2px 7px; border-radius:6px; color:#fff;}
+  .m-GET{background:#2E7D32;} .m-POST{background:var(--blue);} .m-PUT{background:#B45309;} .m-PATCH{background:#7C3AED;} .m-DELETE{background:var(--red);}
+  .editable{cursor:text; border-radius:4px; min-height:1.2em;}
+  .editable:hover{outline:1px dashed var(--border); outline-offset:2px;}
+  .editable:focus{outline:2px solid var(--blue); outline-offset:2px; background:#fff;}
+  .tagrow{display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--info-bg); border:1px solid var(--info-border); border-radius:10px; padding:8px 12px; margin:10px 0;}
+  .tagrow code{background:#fff;}
+  .tagrow input[type=number]{width:56px; padding:3px 6px; border:1px solid var(--border); border-radius:6px; font:inherit;}
+  .evgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:8px 0;}
+  .evgrid label,.field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin-bottom:2px;}
+  .evgrid input,.evgrid textarea,.field input,.field textarea,.paste textarea{width:100%; font:inherit; font-size:13px; border:1px solid var(--border); border-radius:8px; padding:6px 8px; background:#fff;}
+  .evgrid input:focus,.evgrid textarea:focus,.field input:focus,.field textarea:focus,.paste textarea:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(0,81,194,0.15);}
+  .evgrid .row-btn{display:flex; gap:6px;}
+  .span2{grid-column:span 2;} .span3{grid-column:span 3;}
+  .paste textarea{font-family:ui-monospace,Menlo,monospace; font-size:12px; min-height:70px;}
+  .reasonbox{display:none; margin-top:8px;}
+  .scn.s-blocked .reasonbox,.scn.s-follow_up .reasonbox{display:block;}
+  .reasonbox textarea{border-color:var(--amber-border); background:var(--amber-bg);}
+  .reviewer-only{display:none;}
+  body[data-mode=reviewer] .reviewer-only{display:block;}
+  body[data-mode=reviewer] .reviewer-only.inline{display:inline-flex;}
+  .reviewer-box{background:#F4F0FF; border:1px solid #DDD3FA; border-radius:10px; padding:8px 12px; margin-top:10px; align-items:center; gap:10px;}
+  .reviewer-box label{font-size:13px; font-weight:600; color:#5B34B8; display:flex; gap:8px; align-items:center;}
+  .small-note{font-size:12px; color:var(--ink-soft);}
+  .verified-flag{font-size:11px; font-weight:700; color:#5B34B8; display:none;}
+  .scn.verified .verified-flag{display:inline;}
+  table{width:100%; border-collapse:collapse; margin:10px 0 18px; font-size:13.5px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;}
+  th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{background:var(--amber-bg); color:var(--amber); font-size:12px; text-transform:uppercase; letter-spacing:0.03em;}
+  td input,td select{width:100%; font:inherit; font-size:13px; border:1px solid var(--border); border-radius:6px; padding:3px 6px;}
+  .spl th{background:#F0F4FA; color:var(--navy);}
+  .excluded-list{font-size:13px; color:var(--ink-soft);}
+  .excluded-list li{margin:3px 0;}
+  details.fold{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 16px; margin-bottom:14px;}
+  details.fold summary{cursor:pointer; font-weight:600; color:var(--navy);}
+  .toast{position:fixed; bottom:20px; left:20px; background:var(--navy); color:#fff; padding:10px 16px; border-radius:10px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,0.25); z-index:1000; opacity:0; transform:translateY(8px); transition:opacity .2s,transform .2s; pointer-events:none;}
+  .toast.show{opacity:1; transform:translateY(0);}
+  footer{text-align:center; padding:40px 20px 60px; color:var(--gray); font-size:12.5px;}
+  @media print{
+    nav.toc,.autosave-bar,.restore-banner,.toast,.btn,.chip,.mode-toggle{display:none !important;}
+    .layout{grid-template-columns:1fr;} body{background:#fff;}
+    .masthead{background:var(--navy) !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    .scn-body{display:block !important;} .scn{break-inside:avoid;}
+  }
+  @media (max-width:860px){.layout{grid-template-columns:1fr;} nav.toc{position:relative; height:auto;} .meta-grid{grid-template-columns:1fr 1fr;} .dash{grid-template-columns:repeat(3,1fr);} .evgrid{grid-template-columns:1fr;} .span2,.span3{grid-column:span 1;}}
+</style>
+</head>
+<body data-mode="partner">
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="brand-row"><div class="brand-mark">P</div><span>Payroc &middot; Certification Script</span></div>
+    <h1 class="doc-title"><span id="title-partner">Partner</span> &mdash; Certification Script</h1>
+    <p class="doc-subtitle">The UAT test plan Payroc and the partner run together before production. Scope is generated from the partner's Solution Design; every test carries a Test Tag so the Payroc team can find it in the logs.</p>
+    <div class="meta-grid" id="mast-meta"></div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="toc" id="toc"></nav>
+  <main id="app"></main>
+</div>
+<footer>Payroc Certification Script &middot; Confidential &mdash; do not paste real card numbers, API keys or secrets into this file.</footer>
+<div class="toast" id="toast"></div>
+
+<script>/*__VENDOR_JSPDF__*/</script>
+<script type="application/json" id="cert-catalog">__CERT_CATALOG__</script>
+<script type="application/json" id="cert-state">{}</script>
+<script>
+(function () {
+'use strict';
+var VERSION = '0.1.0';
+function $(s, r) { return (r || document).querySelector(s); }
+function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function safeJson(o, pretty) { return JSON.stringify(o, null, pretty ? 2 : 0).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029'); }
+
+var CATALOG = { sections: [] };
+try { CATALOG = JSON.parse($('#cert-catalog').textContent); } catch (e) { CATALOG = { sections: [], error: true }; }
+var STATE = {};
+try { STATE = JSON.parse($('#cert-state').textContent) || {}; } catch (e) { STATE = {}; }
+
+var STATUSES = [['not_run', 'Not run'], ['pass', 'Pass'], ['fail', 'Fail'], ['blocked', 'Blocked'], ['follow_up', 'Needs follow-up'], ['na', 'N/A']];
+var STATUS_LABEL = {}; STATUSES.forEach(function (s) { STATUS_LABEL[s[0]] = s[1]; });
+var SD_SECTIONS = ['boarding', 'equipment', 'gateway', 'hosted-fields', 'hpp', 'payment-links', 'cloud', 'direct-api', 'wallets', 'recurring', 'verification', 'funding', 'reporting'];
+var ALWAYS = ['auth', 'errors', 'security', 'golive'];
+
+// <tailor>
+// ===== SD tailoring (mirrors scripts/parse-sd.py + build-cert.py; keep both in sync, see tests) =====
+function parseSD(md) {
+  var out = { front: {}, sections: {} };
+  var fm = /^---\s*\n([\s\S]*?)\n---\s*(\n|$)/.exec(md);
+  if (fm) {
+    fm[1].split('\n').forEach(function (line) {
+      var m = /^([A-Za-z0-9_]+):\s*(.*)$/.exec(line);
+      if (!m) return;
+      var v = m[2].trim();
+      try { v = JSON.parse(v); } catch (e) { v = v.replace(/^"|"$/g, ''); }
+      out.front[m[1]] = v;
+    });
+  }
+  var re = /<!--\s*sd:section=([a-z0-9-]+)\s*-->/g, marks = [], mm;
+  while ((mm = re.exec(md))) marks.push({ id: mm[1], start: mm.index, end: re.lastIndex });
+  marks.forEach(function (mk, i) {
+    var text = md.slice(mk.end, i + 1 < marks.length ? marks[i + 1].start : md.length);
+    var sc = /^- in_scope:\s*(yes|no)/mi.exec(text), pf = /^- platform:\s*(payroc|worldnet|both)/mi.exec(text);
+    out.sections[mk.id] = { text: text, inScope: sc ? sc[1].toLowerCase() === 'yes' : null, platform: pf ? pf[1].toLowerCase() : null };
+  });
+  return out;
+}
+function matchLines(text) {
+  return text.split('\n').filter(function (l) { return !/^\s*- \[ \]/.test(l) && l.indexOf('[TODO:') < 0; }).join('\n').toLowerCase();
+}
+function pathRegex(path) {
+  var p = String(path || '').replace(/^\/v1/, '');
+  var parts = p.split(/\{[^}]*\}/).map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+  return new RegExp(parts.join('[^\\s|`]*'), 'i');
+}
+function optionalEndpoint(sdText, path) {
+  if (!path) return false;
+  var rx = pathRegex(path), seenOpt = false, seenReq = false;
+  sdText.split('\n').forEach(function (l) {
+    if (l.indexOf('|') < 0 || !rx.test(l)) return;
+    var ll = l.toLowerCase();
+    if (ll.indexOf('[optional]') >= 0) seenOpt = true;
+    if (ll.indexOf('[required]') >= 0) seenReq = true;
+  });
+  return seenOpt && !seenReq;
+}
+function globalPlatform(catalog, sd) {
+  var plats = [], wf = sd.front.workflows_in_scope || [];
+  catalog.sections.forEach(function (sec) {
+    if (ALWAYS.indexOf(sec.section) >= 0) return;
+    var s = sd.sections[sec.section]; if (!s) return;
+    var inScope = s.inScope !== null ? s.inScope : wf.indexOf(sec.section) >= 0;
+    if (inScope) plats.push(s.platform || (sd.front.platforms && sd.front.platforms[sec.section]) || 'payroc');
+  });
+  if (!plats.length) return 'both';
+  if (plats.every(function (p) { return p === 'worldnet'; })) return 'worldnet';
+  if (plats.every(function (p) { return p === 'payroc'; })) return 'payroc';
+  return 'both';
+}
+function tailor(catalog, sd) {
+  var gp = sd ? globalPlatform(catalog, sd) : 'both';
+  var res = { included: [], excluded: [], tierOverride: {}, sections: {}, followUps: [], notes: [], sdProvided: !!sd };
+  catalog.sections.forEach(function (sec) {
+    var info = { inScope: true, platform: 'both', text: '' };
+    if (sd) {
+      var s = sd.sections[sec.section];
+      if (ALWAYS.indexOf(sec.section) >= 0) { info = { inScope: true, platform: (s && s.platform) || gp, text: s ? s.text : '' }; }
+      else {
+        var wf = (sd.front.workflows_in_scope || []);
+        var inScope = s ? (s.inScope !== null ? s.inScope : wf.indexOf(sec.section) >= 0) : false;
+        var plat = (s && s.platform) || (sd.front.platforms && sd.front.platforms[sec.section]) || 'payroc';
+        info = { inScope: !!inScope, platform: plat, text: s ? s.text : '' };
+        if (s) {
+          var todos = (s.text.match(/\[TODO:/g) || []).length;
+          if (inScope && todos) res.followUps.push({ section: sec.section, text: 'SD section "' + sec.label + '" has ' + todos + ' unresolved field(s) - confirm with the partner before certifying.' });
+        }
+      }
+    }
+    var matchText = matchLines(info.text);
+    res.sections[sec.section] = { inScope: info.inScope, platform: info.platform };
+    sec.scenarios.forEach(function (sc) {
+      var reason = null;
+      if (!info.inScope) reason = 'Section not in SD scope';
+      else if (sd) {
+        var sp = sc.platform || 'payroc';
+        if (sp !== 'both' && info.platform !== 'both' && sp !== info.platform) reason = 'Platform ' + info.platform + ' selected in SD';
+        else if (sp !== 'both' && info.platform === 'both') reason = null;
+        else if (sc.tier === 'conditional') {
+          var hit = (sc.appliesWhen || []).some(function (k) { return matchText.indexOf(String(k).toLowerCase()) >= 0; });
+          if (!hit) reason = 'SD does not indicate: ' + (sc.appliesWhen || []).join(', ');
+        }
+      }
+      if (reason) res.excluded.push({ id: sc.id, reason: reason });
+      else {
+        res.included.push(sc.id);
+        if (sd && sc.tier === 'required' && sc.endpoints && sc.endpoints.length && optionalEndpoint(info.text, sc.endpoints[0].path)) res.tierOverride[sc.id] = 'recommended';
+      }
+    });
+  });
+  if (sd && sd.sections['worldnet-sdks'] && sd.sections['worldnet-sdks'].inScope) res.notes.push('SD scopes Worldnet SDKs / POS plugins / GoChip. These are outside this certification script and are not tested here.');
+  return res;
+}
+// </tailor>
+
+function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }); }
+function slug(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6) || 'PARTNER'; }
+function ymd(d) { d = d || new Date(); return String(d.getFullYear()).slice(2) + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2); }
+// Tag budget: Run ID (<=12) + '-' + scenario id (<=6) + '-' + attempt must stay <= 24 chars (Apple Pay / Worldnet order id limit).
+function runId(partner) { return slug(partner) + ymd(); }
+
+function initState() {
+  if (!STATE.meta) STATE.meta = {};
+  var m = STATE.meta;
+  ['partner', 'contact', 'se', 'reviewDate', 'sdFile', 'sdVersion', 'env', 'certRunId', 'splunkTemplate'].forEach(function (k) { if (m[k] == null) m[k] = ''; });
+  if (!m.env) m.env = 'UAT';
+  if (!m.splunkTemplate) m.splunkTemplate = 'index=<INDEX> "{tag}"';
+  if (!m.mode) m.mode = 'partner';
+  if (!m.certRunId) m.certRunId = runId(m.partner);
+  m.signoff = m.signoff || {};
+  if (!STATE.tailor) STATE.tailor = tailor(CATALOG, null);
+  STATE.results = STATE.results || {};
+  STATE.custom = STATE.custom || [];
+  STATE.manualInclude = STATE.manualInclude || {};
+  STATE.manualExclude = STATE.manualExclude || {};
+  STATE.manual = STATE.manual || [];
+  STATE.collapsed = STATE.collapsed || {};
+}
+
+function allScenarios() {
+  var list = [];
+  CATALOG.sections.forEach(function (sec) {
+    sec.scenarios.forEach(function (sc) { list.push(Object.assign({ sectionLabel: sec.label }, sc, { section: sec.section })); });
+  });
+  STATE.custom.forEach(function (sc) { list.push(sc); });
+  return list;
+}
+function scenarioById(id) { var l = allScenarios(), i; for (i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+function res(id) {
+  if (!STATE.results[id]) STATE.results[id] = { status: 'not_run', attempt: 1 };
+  return STATE.results[id];
+}
+function hasResults(id) { var r = STATE.results[id]; return !!(r && (r.status !== 'not_run' || r.http || r.resourceId || r.notes || r.idem || r.ts)); }
+function isIncluded(sc) {
+  if (sc.custom) return !STATE.manualExclude[sc.id];
+  var t = STATE.tailor;
+  if (STATE.manualExclude[sc.id]) return false;
+  return t.included.indexOf(sc.id) >= 0 || !!STATE.manualInclude[sc.id] || hasResults(sc.id);
+}
+function tierOf(sc) { return (STATE.tailor.tierOverride && STATE.tailor.tierOverride[sc.id]) || sc.tier; }
+function tagOf(id) { return STATE.meta.certRunId + '-' + id + '-' + (res(id).attempt || 1); }
+function fieldVal(sc, f) { var r = STATE.results[sc.id]; return (r && r.edits && r.edits[f] != null) ? r.edits[f] : null; }
+function stepsOf(sc) { var v = fieldVal(sc, 'steps'); return v != null ? v.split('\n').filter(function (x) { return x.trim(); }) : (sc.steps || []); }
+function expectedOf(sc) { var v = fieldVal(sc, 'expected'); return v != null ? v : (sc.expected || ''); }
+function titleOf(sc) { var v = fieldVal(sc, 'title'); return v != null ? v : sc.title; }
+
+function includedBySection() {
+  var map = {}, order = [];
+  CATALOG.sections.forEach(function (sec) { map[sec.section] = { sec: sec, list: [] }; order.push(sec.section); });
+  allScenarios().forEach(function (sc) {
+    if (isIncluded(sc) && map[sc.section]) map[sc.section].list.push(sc);
+  });
+  return order.map(function (k) { return map[k]; }).filter(function (x) { return x.list.length; });
+}
+function counts() {
+  var c = { total: 0, pass: 0, fail: 0, blocked: 0, follow_up: 0, not_run: 0, na: 0, verified: 0, reqTotal: 0, reqPass: 0, reqVerified: 0 };
+  allScenarios().forEach(function (sc) {
+    if (!isIncluded(sc)) return;
+    var r = res(sc.id), st = r.status;
+    c[st]++;
+    if (st !== 'na') { c.total++; }
+    if (r.verified) c.verified++;
+    if (tierOf(sc) === 'required' && st !== 'na') { c.reqTotal++; if (st === 'pass') c.reqPass++; if (st === 'pass' && r.verified) c.reqVerified++; }
+  });
+  return c;
+}
+function overallBadge(c) {
+  if (!c.total) return ['Not started', ''];
+  if (c.reqTotal && c.reqVerified === c.reqTotal) return ['Certified', 'certified'];
+  if (c.reqTotal && c.reqPass === c.reqTotal) return ['Ready for Payroc review', 'ready'];
+  if (c.pass + c.fail + c.blocked + c.follow_up) return ['In progress', 'progress-b'];
+  return ['Not started', ''];
+}
+
+// ===== Rendering =====
+function toast(msg) { var t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove('show'); }, 2200); }
+function getPath(o, p) { return p.split('.').reduce(function (a, k) { return a == null ? '' : a[k]; }, o); }
+function setPath(o, p, v) { var ks = p.split('.'), last = ks.pop(); ks.forEach(function (k) { o = o[k] = o[k] || {}; }); o[last] = v; }
+
+function renderMasthead() {
+  var m = STATE.meta;
+  function f(label, path, ph, type) { return '<div><div class="meta-label">' + label + '</div><input class="meta-input" data-bind="meta.' + path + '" type="' + (type || 'text') + '" placeholder="' + esc(ph || '') + '" value="' + esc(getPath(STATE, 'meta.' + path)) + '"></div>'; }
+  $('#mast-meta').innerHTML =
+    f('Partner / ISV', 'partner', 'Partner name') + f('Partner contact', 'contact', 'Name, email') + f('Payroc SE', 'se', 'Sales engineer') + f('Review date', 'reviewDate', '', 'date') +
+    f('Cert Run ID', 'certRunId', 'PARTNERYYMMDD') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
+    f('Solution Design file', 'sdFile', 'Imported SD file') + f('SD template version', 'sdVersion', '');
+  $('#mast-meta select').value = m.env || 'UAT';
+  $('#title-partner').textContent = m.partner || 'Partner';
+  document.title = (m.partner ? m.partner + ' - ' : '') + 'Certification Script | Payroc';
+}
+
+function renderToc(groups) {
+  var h = '<div class="toc-heading">Overview</div><a href="#top-summary">Summary</a><a href="#blockers">Blockers &amp; follow-ups</a>';
+  h += '<div class="toc-heading">Workflows</div>';
+  groups.forEach(function (g) {
+    var done = g.list.filter(function (s) { var st = res(s.id).status; return st === 'pass' || st === 'na'; }).length;
+    h += '<a href="#sec-' + g.sec.section + '" class="' + (done === g.list.length ? 'done' : '') + '"><span>' + esc(g.sec.label) + '</span><span class="toc-count">' + done + '/' + g.list.length + '</span></a>';
+  });
+  h += '<div class="toc-heading">Wrap-up</div><a href="#reviewer-tools" class="reviewer-only">Splunk &amp; verification</a><a href="#signoff">Sign-off</a>';
+  $('#toc').innerHTML = h;
+}
+
+function endpointHtml(sc) {
+  return (sc.endpoints || []).map(function (e) {
+    return '<div class="ep"><span class="method m-' + esc(e.method) + '">' + esc(e.method) + '</span><code>' + esc(e.path) + '</code>' + (e.tagField ? '<span class="small-note">Test Tag goes in <code>' + esc(e.tagField) + '</code></span>' : '') + '</div>';
+  }).join('');
+}
+function requestText(sc) {
+  if (!sc.requestExample) return '';
+  var r = res(sc.id);
+  return JSON.stringify(sc.requestExample, null, 2).replace(/\{\{TEST_TAG\}\}/g, tagOf(sc.id)).replace(/\{\{IDEMPOTENCY_KEY\}\}/g, r.idem || '<uuid-v4>');
+}
+
+function scenarioHtml(sc) {
+  var r = res(sc.id), tier = tierOf(sc), st = r.status;
+  var open = STATE.collapsed['scn:' + sc.id] === false;
+  var h = '<div class="scn s-' + st + (open ? ' open' : '') + (r.verified ? ' verified' : '') + '" id="scn-' + sc.id + '" data-id="' + esc(sc.id) + '">';
+  h += '<div class="scn-head" data-action="toggle-scn"><input type="checkbox" data-action="quick-pass" title="Mark as passed"' + (st === 'pass' ? ' checked' : '') + '>';
+  h += '<span class="scn-id">' + esc(sc.id) + '</span><span class="scn-title">' + esc(titleOf(sc)) + '</span>';
+  if (sc.platform === 'worldnet') h += '<span class="pill wn">Worldnet</span>';
+  h += '<span class="pill ' + esc(tier) + '">' + esc(tier) + '</span><span class="verified-flag">&#10003; verified</span>';
+  h += '<select class="status-select" data-action="status">' + STATUSES.map(function (s) { return '<option value="' + s[0] + '"' + (s[0] === st ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="scn-body">';
+  if (sc.objective) h += '<p>' + esc(sc.objective) + '</p>';
+  if (sc.custom) h += '<h4>Title</h4><div class="editable" contenteditable="true" spellcheck="false" data-edit="title">' + esc(titleOf(sc)) + '</div>';
+  var eps = endpointHtml(sc); if (eps) h += '<h4>Endpoints</h4>' + eps;
+  h += '<h4>Steps</h4><ol class="editable" contenteditable="true" spellcheck="false" data-edit="steps">' + stepsOf(sc).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>';
+  h += '<h4>Expected result</h4><div class="editable" contenteditable="true" spellcheck="false" data-edit="expected">' + esc(expectedOf(sc)) + '</div>';
+  if (sc.expectedStatus) h += '<div class="small-note">Expected HTTP status: <b>' + esc(sc.expectedStatus) + '</b></div>';
+  if (sc.testData) h += '<h4>Test data</h4><div>' + esc(sc.testData) + '</div>';
+  if (sc.pitfalls) h += '<h4>Watch for</h4><div>' + esc(sc.pitfalls) + '</div>';
+  var rq = requestText(sc);
+  if (rq) h += '<h4>Example request body</h4><pre class="code-block" data-rq="' + esc(sc.id) + '">' + esc(rq) + '</pre><button class="btn secondary small" data-action="copy-rq">Copy body</button>' + (sc.platform !== 'worldnet' && sc.endpoints && sc.endpoints[0] ? ' <button class="btn secondary small" data-action="copy-curl">Copy as cURL</button>' : '');
+  h += '<div class="tagrow"><b>Test Tag</b> <code data-tag>' + esc(tagOf(sc.id)) + '</code> <button class="btn secondary small" data-action="copy-tag">Copy tag</button> <span class="small-note">Attempt</span><input type="number" min="1" data-field="attempt" value="' + (r.attempt || 1) + '"> <span class="small-note">Increment on a re-run so each run is distinct.</span></div>';
+  h += '<div class="evgrid">';
+  h += '<div class="field"><label>HTTP status</label><input data-field="http" value="' + esc(r.http || '') + '"></div>';
+  h += '<div class="field"><label>Timestamp (UTC)</label><div class="row-btn" style="display:flex;gap:6px"><input data-field="ts" value="' + esc(r.ts || '') + '"><button class="btn secondary small" data-action="now">Now</button></div></div>';
+  h += '<div class="field"><label>Idempotency-Key</label><div style="display:flex;gap:6px"><input data-field="idem" value="' + esc(r.idem || '') + '"><button class="btn secondary small" data-action="gen-uuid">New</button></div></div>';
+  h += '<div class="field"><label>Payroc resource ID' + ((sc.evidence && sc.evidence.length) ? ' (' + esc(sc.evidence.join(', ')) + ')' : '') + '</label><input data-field="resourceId" value="' + esc(r.resourceId || '') + '"></div>';
+  h += '<div class="field"><label>Response / correlation ID</label><input data-field="corrId" value="' + esc(r.corrId || '') + '"></div>';
+  h += '<div class="field"><label>MID / terminal used</label><input data-field="mid" value="' + esc(r.mid || '') + '"></div>';
+  h += '<div class="field span3"><label>Notes</label><textarea rows="2" data-field="notes">' + esc(r.notes || '') + '</textarea></div></div>';
+  h += '<div class="reasonbox"><div class="field"><label>Reason (required for Blocked / Needs follow-up)</label><textarea rows="2" data-field="reason">' + esc(r.reason || '') + '</textarea></div></div>';
+  h += '<details class="paste"><summary class="small-note">Paste a response or log line to auto-fill the fields above</summary><textarea data-paste placeholder="Paste the Payroc response (JSON), optionally preceded by the HTTP status line and headers. Secrets and card numbers are masked."></textarea><button class="btn secondary small" data-action="parse-paste">Extract</button></details>';
+  h += '<div class="reviewer-only reviewer-box"><label><input type="checkbox" data-field="verified"' + (r.verified ? ' checked' : '') + '> Verified in logs</label><div class="field" style="margin-top:6px"><label>Reviewer note</label><input data-field="reviewNote" value="' + esc(r.reviewNote || '') + '"></div></div>';
+  h += '<div style="margin-top:10px;display:flex;gap:8px">' + (sc.custom ? '<button class="btn secondary small" data-action="del-custom">Delete scenario</button>' : '<button class="btn secondary small" data-action="exclude">Exclude from this script</button>') + '</div>';
+  h += '</div></div>';
+  return h;
+}
+
+function sectionHtml(g) {
+  var done = g.list.filter(function (s) { var x = res(s.id).status; return x === 'pass' || x === 'na'; }).length;
+  var collapsed = STATE.collapsed['sec:' + g.sec.section];
+  var plat = STATE.tailor.sections[g.sec.section] ? STATE.tailor.sections[g.sec.section].platform : '';
+  var h = '<section class="sec' + (collapsed ? ' collapsed' : '') + '" id="sec-' + g.sec.section + '" data-sec="' + g.sec.section + '">';
+  h += '<div class="sec-head" data-action="toggle-sec"><h2>' + esc(g.sec.label) + '</h2><div class="sec-meta">' + (plat && plat !== 'both' && plat !== 'payroc' ? '<span class="pill wn">' + esc(plat) + '</span>' : '') + '<span data-sec-count>' + done + ' / ' + g.list.length + ' complete</span></div></div>';
+  h += '<div class="sec-body">' + g.list.map(scenarioHtml).join('');
+  h += '<button class="btn secondary small" data-action="add-custom">+ Add scenario</button></div></section>';
+  return h;
+}
+
+function blockersHtml() {
+  var rows = '';
+  allScenarios().forEach(function (sc) {
+    if (!isIncluded(sc)) return;
+    var r = res(sc.id);
+    if (r.status !== 'blocked' && r.status !== 'follow_up') return;
+    rows += '<tr><td><a href="#scn-' + esc(sc.id) + '" data-action="jump" data-id="' + esc(sc.id) + '">' + esc(sc.id) + '</a></td><td>' + esc(STATUS_LABEL[r.status]) + '</td><td>' + esc(titleOf(sc)) + '<div class="small-note">' + esc(r.reason || '(no reason entered)') + '</div></td>' +
+      '<td><select data-owner="' + esc(sc.id) + '"><option></option><option' + (r.owner === 'Partner' ? ' selected' : '') + '>Partner</option><option' + (r.owner === 'Payroc' ? ' selected' : '') + '>Payroc</option></select></td><td><input type="date" data-target="' + esc(sc.id) + '" value="' + esc(r.target || '') + '"></td></tr>';
+  });
+  (STATE.tailor.followUps || []).forEach(function (f) { rows += '<tr><td>SD</td><td>Needs follow-up</td><td>' + esc(f.text) + '</td><td>Partner</td><td></td></tr>'; });
+  STATE.manual.forEach(function (m, i) {
+    rows += '<tr><td>Manual</td><td><select data-mstatus="' + i + '"><option' + (m.status === 'Blocked' ? ' selected' : '') + '>Blocked</option><option' + (m.status !== 'Blocked' ? ' selected' : '') + '>Needs follow-up</option></select></td><td><input data-mtext="' + i + '" value="' + esc(m.text || '') + '"></td><td><input data-mowner="' + i + '" value="' + esc(m.owner || '') + '"></td><td><button class="btn secondary small" data-action="del-manual" data-i="' + i + '">&times;</button></td></tr>';
+  });
+  if (!rows) rows = '<tr><td colspan="5" class="small-note">Nothing blocked or awaiting follow-up.</td></tr>';
+  return '<table><thead><tr><th>Ref</th><th>Status</th><th>Item / reason</th><th>Owner</th><th>Target</th></tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function excludedHtml() {
+  var ex = [];
+  STATE.tailor.excluded.forEach(function (e) { if (!isIncluded(scenarioById(e.id) || { id: e.id })) ex.push({ id: e.id, reason: e.reason }); });
+  allScenarios().forEach(function (sc) { if (STATE.manualExclude[sc.id] && !sc.custom) ex.push({ id: sc.id, reason: 'Excluded manually' + (STATE.manualExclude[sc.id] !== true ? ': ' + STATE.manualExclude[sc.id] : '') }); });
+  var seen = {}; ex = ex.filter(function (e) { if (seen[e.id]) return false; seen[e.id] = 1; return true; });
+  var li = ex.map(function (e) { var sc = scenarioById(e.id); return '<li><code>' + esc(e.id) + '</code> ' + esc(sc ? sc.title : '') + ' <span class="small-note">- ' + esc(e.reason) + '</span> <button class="btn secondary small" data-action="include" data-id="' + esc(e.id) + '">Add to script</button></li>'; }).join('');
+  return '<details class="fold"><summary>' + ex.length + ' scenarios not in this script (click to review / add back)</summary><ul class="excluded-list">' + (li || '<li>None.</li>') + '</ul></details>';
+}
+
+function render() {
+  initState();
+  renderMasthead();
+  var groups = includedBySection();
+  var c = counts(), b = overallBadge(c);
+  var app = [];
+  app.push('<div id="top-summary"></div>');
+  app.push('<div class="restore-banner" id="restore-banner"><span>A newer draft of this script is cached in this browser.</span><span><button class="btn small" id="restore-btn">Restore it</button> <button class="btn secondary small" id="dismiss-restore">Dismiss</button></span></div>');
+  app.push('<div class="autosave-bar"><div class="bar-row"><div class="autosave-status"><span class="autosave-dot" id="as-dot"></span><span id="as-text">Autosave is off</span></div><div class="bar-actions">' +
+    '<button class="btn" id="en-html" style="display:none">Autosave .html</button><button class="btn secondary" id="en-md" style="display:none">Autosave .md</button><button class="btn secondary" id="en-pdf" style="display:none">Autosave .pdf</button>' +
+    '<button class="btn secondary" id="dl-all">Download copies</button><select class="mode-toggle" id="mode"><option value="partner">Partner view</option><option value="reviewer">Payroc reviewer view</option></select></div></div>' +
+    '<div class="bar-row"><div class="small-note" id="as-detail"></div><div class="bar-actions"><button class="btn secondary small" id="imp-sd">Import SD (.md)</button><button class="btn secondary small" id="imp-res">Import results (.md / .json / .csv)</button><button class="btn secondary small" id="dl-csv">Results CSV template</button></div></div>' +
+    '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and .pdf.</div>' +
+    '<input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden></div>');
+  app.push('<div class="callout instructions"><strong>How to record a test</strong><ol><li>Open a scenario, copy its <b>Test Tag</b> and send it in the field shown under Endpoints (so Payroc can find your call in the logs).</li><li>Run the call in <b>UAT</b> and paste the response into &ldquo;Paste a response&rdquo;, or fill the evidence fields.</li><li>Set the result: Pass, Fail, <b>Blocked</b> or <b>Needs follow-up</b> (add a reason). Anything blocked appears in the Blockers table for Payroc.</li><li>Keep autosave on and send the saved files back to your Payroc contact. Never paste real card numbers or secrets.</li></ol></div>');
+  var tn = STATE.tailor.notes || [];
+  var srcLine = STATE.tailor.sdProvided ? 'Scope generated from <b>' + esc(STATE.meta.sdFile || 'the imported Solution Design') + '</b>.' : '<b>No Solution Design imported</b> &mdash; showing the full catalogue. Use &ldquo;Import SD (.md)&rdquo; to tailor it to the partner.';
+  app.push('<div class="callout' + (STATE.tailor.sdProvided ? '' : ' warn') + '">' + srcLine + (tn.length ? '<p>' + tn.map(esc).join('<br>') + '</p>' : '') + '</div>');
+  app.push('<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Progress</h3><span class="badge ' + b[1] + '" id="badge">' + b[0] + '</span><button class="chip' + ((c.blocked + c.follow_up) ? '' : ' zero') + '" id="open-chip" data-action="goto-blockers">' + (c.blocked + c.follow_up) + ' open item(s)</button></div><div class="progress"><div id="prog-bar" style="width:' + (c.total ? Math.round(100 * c.pass / c.total) : 0) + '%"></div></div>' +
+    '<div class="dash" id="dash"></div></div>');
+  app.push(excludedHtml());
+  groups.forEach(function (g) { app.push(sectionHtml(g)); });
+  app.push('<section class="sec" id="blockers"><h2>Blockers &amp; follow-ups</h2><div id="blockers-body">' + blockersHtml() + '</div><button class="btn secondary small" data-action="add-manual">+ Add item</button></section>');
+  app.push('<section class="sec reviewer-only" id="reviewer-tools"><h2>Payroc reviewer: log lookup</h2><p class="small-note">Search each Test Tag in Splunk, then tick &ldquo;Verified in logs&rdquo; on the scenario. Set the index/field once in the query template.</p><div class="field"><label>Search template (use {tag})</label><input data-bind="meta.splunkTemplate" value="' + esc(STATE.meta.splunkTemplate) + '"></div><div id="splunk-body"></div></section>');
+  app.push('<section class="sec" id="signoff"><h2>Certification sign-off</h2><div class="card"><div class="evgrid">' +
+    ['uatDate|UAT certified date|date', 'prodDate|Production go-live date|date', 'se|Payroc SE', 'dev|Partner dev lead'].map(function (x) { var p = x.split('|'); return '<div class="field"><label>' + p[1] + '</label><input type="' + (p[2] || 'text') + '" data-bind="meta.signoff.' + p[0] + '" value="' + esc(getPath(STATE, 'meta.signoff.' + p[0])) + '"></div>'; }).join('') +
+    '<div class="field span3"><label>Production pricing intent IDs / other production identifiers</label><textarea rows="2" data-bind="meta.signoff.pids">' + esc(getPath(STATE, 'meta.signoff.pids')) + '</textarea></div><div class="field span3"><label>Open items / blockers</label><textarea rows="3" data-bind="meta.signoff.open">' + esc(getPath(STATE, 'meta.signoff.open')) + '</textarea></div></div></div></section>');
+  $('#app').innerHTML = app.join('');
+  $('#mode').value = STATE.meta.mode; document.body.setAttribute('data-mode', STATE.meta.mode);
+  renderToc(groups);
+  refreshDerived();
+  autosave.rebind();
+}
+
+function refreshDerived() {
+  var c = counts(), b = overallBadge(c);
+  var dash = $('#dash'); if (!dash) return;
+  dash.innerHTML = [['total', 'In script', ''], ['pass', 'Passed', 'pass'], ['fail', 'Failed', 'fail'], ['blocked', 'Blocked', 'fail'], ['follow_up', 'Follow-up', 'follow'], ['verified', 'Verified', '']].map(function (x) { return '<div class="stat ' + x[2] + '"><b>' + c[x[0]] + '</b><span>' + x[1] + '</span></div>'; }).join('');
+  $('#prog-bar').style.width = (c.total ? Math.round(100 * c.pass / c.total) : 0) + '%';
+  var bd = $('#badge'); bd.textContent = b[0] + (b[1] === 'progress-b' && c.total ? ' - ' + Math.round(100 * c.pass / c.total) + '%' : ''); bd.className = 'badge ' + b[1];
+  var chip = $('#open-chip'); chip.textContent = (c.blocked + c.follow_up) + ' open item(s)'; chip.className = 'chip' + ((c.blocked + c.follow_up) ? '' : ' zero');
+  $$('.sec[data-sec]').forEach(function (el) {
+    var ids = $$('.scn', el).map(function (s) { return s.getAttribute('data-id'); });
+    var done = ids.filter(function (id) { var st = res(id).status; return st === 'pass' || st === 'na'; }).length;
+    $('[data-sec-count]', el).textContent = done + ' / ' + ids.length + ' complete';
+  });
+  renderToc(includedBySection());
+  var bb = $('#blockers-body'); if (bb) bb.innerHTML = blockersHtml();
+  renderSplunk();
+}
+
+function renderSplunk() {
+  var el = $('#splunk-body'); if (!el) return;
+  var rows = [], tags = [];
+  allScenarios().forEach(function (sc) {
+    if (!isIncluded(sc)) return;
+    var r = res(sc.id); if (r.status === 'not_run') return;
+    var tag = tagOf(sc.id); tags.push(tag);
+    rows.push('<tr><td>' + esc(sc.id) + '</td><td><code>' + esc(tag) + '</code></td><td>' + esc(r.ts || '') + '</td><td>' + esc(r.http || '') + '</td><td>' + esc(r.resourceId || '') + '</td><td>' + esc(STATUS_LABEL[r.status]) + '</td><td><button class="btn secondary small" data-action="copy-search" data-tag="' + esc(tag) + '">Copy search</button></td></tr>');
+  });
+  var tpl = STATE.meta.splunkTemplate || '"{tag}"';
+  el.innerHTML = '<table class="spl"><thead><tr><th>Scenario</th><th>Test Tag</th><th>Timestamp (UTC)</th><th>HTTP</th><th>Resource ID</th><th>Result</th><th></th></tr></thead><tbody>' + (rows.join('') || '<tr><td colspan="7" class="small-note">No recorded runs yet.</td></tr>') + '</tbody></table>' +
+    '<button class="btn secondary small" data-action="copy-all-search">Copy combined search</button> <button class="btn secondary small" data-action="copy-evidence-csv">Copy evidence as CSV</button>';
+  el._tags = tags; el._tpl = tpl;
+}
+
+// ===== Paste-to-capture + redaction =====
+function luhn(d) { var sum = 0, alt = false, i, n; for (i = d.length - 1; i >= 0; i--) { n = +d[i]; if (alt) { n *= 2; if (n > 9) n -= 9; } sum += n; alt = !alt; } return sum % 10 === 0; }
+function redact(s) {
+  return String(s)
+    .replace(/(authorization\s*[:=]\s*"?)(?:bearer\s+)?[^\s,}"]+/gi, '$1[REDACTED]')
+    .replace(/(bearer\s+)[A-Za-z0-9._~+\/=-]{8,}/gi, '$1[REDACTED]')
+    .replace(/("?(?:x-api-key|api[_-]?key|secret|password|access_token|cvv|cvc|securityCode)"?\s*[:=]\s*)("[^"]*"|[^\s,}]+)/gi, '$1"[REDACTED]"')
+    .replace(/(^|[^\w-])((?:\d[ -]?){12,18}\d)(?![\w-])/g, function (m, pre, num) { var d = num.replace(/\D/g, ''); return luhn(d) && d.length >= 13 && d.length <= 19 ? pre + '[REDACTED-CARD]' : m; });
+}
+function parsePaste(text, sc) {
+  var out = {}, clean = redact(text);
+  var h = /HTTP\/[\d.]+\s+(\d{3})/i.exec(clean) || /^\s*(?:status|http status)[:=\s]+(\d{3})/im.exec(clean);
+  if (h) out.http = h[1];
+  var idem = /idempotency-key[:=\s"]+([A-Za-z0-9-]{8,})/i.exec(clean); if (idem) out.idem = idem[1];
+  var corr = /(?:x-request-id|request-id|correlation-id|trace-id|x-correlation-id)[:=\s"]+([A-Za-z0-9._-]{6,})/i.exec(clean); if (corr) out.corrId = corr[1];
+  var ts = /"(?:created|createdOn|dateTime|date|lastModified|timestamp)"\s*:\s*"([^"]+)"/i.exec(clean); if (ts) out.ts = ts[1];
+  var js = null, i = clean.indexOf('{'), j = clean.lastIndexOf('}');
+  if (i >= 0 && j > i) { try { js = JSON.parse(clean.slice(i, j + 1)); } catch (e) { js = null; } }
+  if (js) {
+    var ids = [];
+    (function walk(o, d) { if (!o || typeof o !== 'object' || d > 3) return; Object.keys(o).forEach(function (k) { var v = o[k]; if (typeof v === 'string' && /Id$/.test(k) && !/^(idempotency|terminal|processingTerminal)/i.test(k) || k === 'id') ids.push(k + '=' + v); else if (v && typeof v === 'object') walk(v, d + 1); }); })(js, 0);
+    if (ids.length) out.resourceId = ids.slice(0, 3).join('; ');
+    if (!out.http && js.type && /problem|error/i.test(String(js.type))) out.http = String(js.status || '');
+  }
+  out.excerpt = clean.slice(0, 3000);
+  return out;
+}
+
+// ===== Markdown export / import =====
+function certToMarkdown() {
+  var m = STATE.meta, c = counts(), L = [];
+  function q(v) { return JSON.stringify(v == null || v === '' ? null : v); }
+  L.push('---');
+  L.push('document: payroc-certification-script');
+  L.push('template_version: "' + VERSION + '"');
+  L.push('partner: ' + q(m.partner)); L.push('partner_contact: ' + q(m.contact)); L.push('payroc_se: ' + q(m.se));
+  L.push('cert_run_id: ' + q(m.certRunId)); L.push('environment: ' + q(m.env)); L.push('review_date: ' + q(m.reviewDate));
+  L.push('sd_source: ' + q(m.sdFile)); L.push('generated_at: "' + new Date().toISOString() + '"');
+  L.push('scenarios_total: ' + c.total);
+  L.push('counts: ' + JSON.stringify({ pass: c.pass, fail: c.fail, blocked: c.blocked, follow_up: c.follow_up, not_run: c.not_run, na: c.na }));
+  L.push('verified_in_logs: ' + c.verified);
+  L.push('---', '');
+  L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; use the `test_tag` value exactly as written in the request field named by `tag_field`; never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.', '');
+  L.push('# ' + (m.partner || 'Partner') + ' - Certification Script', '');
+  includedBySection().forEach(function (g) {
+    L.push('<!-- cert:section=' + g.sec.section + ' -->', '## ' + g.sec.label, '');
+    g.list.forEach(function (sc) {
+      var r = res(sc.id);
+      L.push('<!-- cert:scenario=' + sc.id + ' -->', '### ' + sc.id + ' - ' + titleOf(sc), '');
+      L.push('- tier: ' + tierOf(sc)); L.push('- platform: ' + (sc.platform || 'payroc'));
+      L.push('- status: ' + r.status); L.push('- test_tag: ' + tagOf(sc.id));
+      var eps = (sc.endpoints || []); if (eps.length) { L.push('- endpoints: ' + eps.map(function (e) { return e.method + ' ' + e.path; }).join(', ')); L.push('- tag_field: ' + (eps[0].tagField || 'n/a')); }
+      if (sc.expectedStatus) L.push('- expected_http_status: ' + sc.expectedStatus);
+      if (sc.objective) L.push('- objective: ' + sc.objective);
+      L.push('', '**Steps**', ''); stepsOf(sc).forEach(function (s, i) { L.push((i + 1) + '. ' + s); });
+      L.push('', '**Expected:** ' + expectedOf(sc));
+      if (sc.testData) L.push('', '**Test data:** ' + sc.testData);
+      L.push('', '**Evidence**', '');
+      L.push('- http_status: ' + (r.http || '')); L.push('- timestamp_utc: ' + (r.ts || '')); L.push('- idempotency_key: ' + (r.idem || ''));
+      L.push('- resource_id: ' + (r.resourceId || '')); L.push('- correlation_id: ' + (r.corrId || '')); L.push('- mid_terminal: ' + (r.mid || ''));
+      L.push('- reason: ' + (r.reason ? JSON.stringify(r.reason) : '')); L.push('- notes: ' + (r.notes ? JSON.stringify(r.notes) : ''));
+      L.push('- owner: ' + (r.owner || '')); L.push('- target_date: ' + (r.target || ''));
+      L.push('- verified_in_logs: ' + (r.verified ? 'true' : 'false')); L.push('- reviewer_note: ' + (r.reviewNote ? JSON.stringify(r.reviewNote) : ''));
+      L.push('');
+    });
+  });
+  L.push('<!-- cert:section=blockers -->', '## Blockers & follow-ups', '');
+  var any = false;
+  allScenarios().forEach(function (sc) { var r = res(sc.id); if (isIncluded(sc) && (r.status === 'blocked' || r.status === 'follow_up')) { any = true; L.push('- ' + sc.id + ' [' + STATUS_LABEL[r.status] + '] ' + (r.reason || '')); } });
+  (STATE.tailor.followUps || []).forEach(function (f) { any = true; L.push('- SD [Needs follow-up] ' + f.text); });
+  STATE.manual.forEach(function (x) { any = true; L.push('- manual [' + x.status + '] ' + x.text + (x.owner ? ' (owner: ' + x.owner + ')' : '')); });
+  if (!any) L.push('None.');
+  L.push('', '<!-- cert:section=signoff -->', '## Sign-off', '');
+  var so = m.signoff || {};
+  L.push('- uat_certified_date: ' + (so.uatDate || '')); L.push('- production_go_live_date: ' + (so.prodDate || '')); L.push('- payroc_se: ' + (so.se || '')); L.push('- partner_dev_lead: ' + (so.dev || ''));
+  L.push('- production_identifiers: ' + (so.pids ? JSON.stringify(so.pids) : '')); L.push('- open_items: ' + (so.open ? JSON.stringify(so.open) : ''), '');
+  return L.join('\n');
+}
+function unq(v) { v = (v || '').trim(); if (v[0] === '"') { try { return JSON.parse(v); } catch (e) { } } return v; }
+function importResultsMd(md) {
+  var re = /<!--\s*cert:scenario=([A-Za-z0-9-]+)\s*-->/g, marks = [], mm, n = 0;
+  while ((mm = re.exec(md))) marks.push({ id: mm[1], s: re.lastIndex, st: mm.index });
+  marks.forEach(function (mk, i) {
+    var block = md.slice(mk.s, i + 1 < marks.length ? marks[i + 1].st : md.length);
+    var sc = scenarioById(mk.id); if (!sc) return;
+    var r = res(mk.id), get = function (k) { var x = new RegExp('^- ' + k + ':[ \\t]*(.*)$', 'm').exec(block); return x ? unq(x[1]) : null; };
+    var st = get('status'); if (st && STATUS_LABEL[st]) r.status = st;
+    var tag = get('test_tag'); if (tag) { var am = /-(\d+)$/.exec(tag); if (am) r.attempt = +am[1]; }
+    [['http_status', 'http'], ['timestamp_utc', 'ts'], ['idempotency_key', 'idem'], ['resource_id', 'resourceId'], ['correlation_id', 'corrId'], ['mid_terminal', 'mid'], ['reason', 'reason'], ['notes', 'notes'], ['owner', 'owner'], ['target_date', 'target'], ['reviewer_note', 'reviewNote']].forEach(function (p) { var v = get(p[0]); if (v != null && v !== '') r[p[1]] = v; });
+    var vv = get('verified_in_logs'); if (vv === 'true') r.verified = true;
+    n++;
+  });
+  return n;
+}
+function parseCsv(text) {
+  var rows = [], row = [], cur = '', q = false, i, ch;
+  for (i = 0; i < text.length; i++) {
+    ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true; else if (ch === ',') { row.push(cur); cur = ''; } else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; } else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(function (r) { return r.length > 1 || r[0]; });
+}
+function applyRecord(o) {
+  var id = o.scenarioId || o.scenario || o.id, tag = o.testTag || o.test_tag || o.tag;
+  if (!id && tag) { var m = /-([A-Z0-9]+-\d+)-\d+$/.exec(tag); if (m) id = m[1]; }
+  if (!id || !scenarioById(id)) return false;
+  var r = res(id), map = { timestamp: 'ts', httpStatus: 'http', resourceId: 'resourceId', notes: 'notes', idempotencyKey: 'idem', correlationId: 'corrId' };
+  Object.keys(map).forEach(function (k) { if (o[k] != null && o[k] !== '') r[map[k]] = String(o[k]); });
+  var rs = String(o.result || o.status || '').toLowerCase().replace(/[ -]/g, '_'); if (STATUS_LABEL[rs]) r.status = rs;
+  if (tag) { var am = /-(\d+)$/.exec(tag); if (am) r.attempt = +am[1]; }
+  STATE.manualInclude[id] = true; return true;
+}
+function importResultsFile(name, text) {
+  var n = 0;
+  if (/\.json$/i.test(name)) { var j = JSON.parse(text); (Array.isArray(j) ? j : (j.results || [])).forEach(function (o) { if (applyRecord(o)) n++; }); }
+  else if (/\.csv$/i.test(name)) { var rows = parseCsv(text), head = rows.shift().map(function (x) { return x.trim(); }); rows.forEach(function (r) { var o = {}; head.forEach(function (k, i) { o[k] = r[i]; }); if (applyRecord(o)) n++; }); }
+  else n = importResultsMd(text);
+  return n;
+}
+
+// ===== PDF =====
+function buildPdf() {
+  if (!window.jspdf || !window.jspdf.jsPDF) return null;
+  var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' }), W = 612, H = 792, M = 46, y = 0, page = 1;
+  function t(s) { return String(s == null ? '' : s).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/[^\x09\x0A\x20-\x7E -ÿ]/g, '?'); }
+  function header() { doc.setFillColor(0, 29, 78); doc.rect(0, 0, W, 34, 'F'); doc.setFillColor(0, 224, 184); doc.roundedRect(M, 9, 16, 16, 3, 3, 'F'); doc.setTextColor(0, 29, 78); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text('P', M + 5, 21); doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.text('PAYROC  |  CERTIFICATION SCRIPT  |  ' + t(STATE.meta.certRunId), M + 24, 21); y = 52; }
+  function footer() { doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120); doc.text('Confidential - page ' + page, W - M, H - 20, { align: 'right' }); }
+  function np() { footer(); doc.addPage(); page++; header(); }
+  function need(h) { if (y + h > H - 40) np(); }
+  function para(txt, size, bold, color, indent) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor.apply(doc, color || [11, 18, 32]);
+    var lines = doc.splitTextToSize(t(txt), W - 2 * M - (indent || 0));
+    lines.forEach(function (ln) { need(size + 4); doc.text(ln, M + (indent || 0), y); y += size + 3; });
+  }
+  header();
+  var m = STATE.meta, c = counts(), b = overallBadge(c);
+  para((m.partner || 'Partner') + ' - Certification Script', 18, true, [0, 29, 78]); y += 2;
+  para('Status: ' + b[0] + '   |   Environment: ' + m.env + '   |   Cert Run ID: ' + m.certRunId, 9, false, [75, 85, 102]);
+  para('Payroc SE: ' + (m.se || '-') + '   |   Partner contact: ' + (m.contact || '-') + '   |   Review date: ' + (m.reviewDate || '-') + '   |   SD: ' + (m.sdFile || '-'), 9, false, [75, 85, 102]);
+  para('Passed ' + c.pass + ' / ' + c.total + '   Failed ' + c.fail + '   Blocked ' + c.blocked + '   Follow-up ' + c.follow_up + '   Verified in logs ' + c.verified, 10, true, [0, 81, 194]); y += 6;
+  var colors = { pass: [0, 168, 136], fail: [192, 51, 43], blocked: [192, 51, 43], follow_up: [180, 83, 9], na: [140, 140, 140], not_run: [120, 120, 120] };
+  includedBySection().forEach(function (g) {
+    need(40); y += 8; para(g.sec.label, 13, true, [0, 29, 78]); doc.setDrawColor(226, 232, 240); doc.line(M, y - 2, W - M, y - 2); y += 4;
+    g.list.forEach(function (sc) {
+      var r = res(sc.id); need(60);
+      doc.setFillColor.apply(doc, colors[r.status]); doc.rect(M, y - 9, 3, 12, 'F');
+      para(sc.id + '  ' + titleOf(sc), 10, true, [11, 18, 32], 8);
+      para(STATUS_LABEL[r.status].toUpperCase() + '  |  ' + tierOf(sc) + '  |  tag ' + tagOf(sc.id) + (r.verified ? '  |  VERIFIED' : ''), 8, false, colors[r.status], 8);
+      if (r.status !== 'not_run') {
+        var ev = ['HTTP ' + (r.http || '-'), 'ts ' + (r.ts || '-'), 'id ' + (r.resourceId || '-'), 'idem ' + (r.idem || '-'), 'corr ' + (r.corrId || '-')].join('   ');
+        para(ev, 8, false, [75, 85, 102], 8);
+        if (r.reason) para('Reason: ' + r.reason, 8, false, [180, 83, 9], 8);
+        if (r.notes) para('Notes: ' + r.notes, 8, false, [75, 85, 102], 8);
+      }
+      y += 4;
+    });
+  });
+  need(60); y += 8; para('Blockers & follow-ups', 13, true, [0, 29, 78]);
+  var any = false;
+  allScenarios().forEach(function (sc) { var r = res(sc.id); if (isIncluded(sc) && (r.status === 'blocked' || r.status === 'follow_up')) { any = true; para(sc.id + ' [' + STATUS_LABEL[r.status] + '] ' + (r.reason || ''), 9, false, [11, 18, 32], 8); } });
+  (STATE.tailor.followUps || []).forEach(function (f) { any = true; para('SD: ' + f.text, 9, false, [11, 18, 32], 8); });
+  STATE.manual.forEach(function (x) { any = true; para('Manual [' + x.status + '] ' + x.text, 9, false, [11, 18, 32], 8); });
+  if (!any) para('None.', 9, false, [75, 85, 102], 8);
+  var so = m.signoff || {};
+  need(90); y += 10; para('Sign-off', 13, true, [0, 29, 78]);
+  para('UAT certified: ' + (so.uatDate || '-') + '   Production go-live: ' + (so.prodDate || '-') + '   Payroc SE: ' + (so.se || '-') + '   Partner dev lead: ' + (so.dev || '-'), 9);
+  if (so.pids) para('Production identifiers: ' + so.pids, 9); if (so.open) para('Open items: ' + so.open, 9);
+  footer();
+  return doc;
+}
+
+// ===== Autosave (.html + .md + .pdf) =====
+var autosave = (function () {
+  var LS_KEY = 'payroc-cert-autosave:' + (location.pathname || document.title);
+  var handles = { html: null, md: null, pdf: null }, timers = {}, DEB = { html: 1200, md: 1200, pdf: 6000 };
+  var names = { html: 'text/html', md: 'text/markdown', pdf: 'application/pdf' };
+  function base() { return (STATE.meta && STATE.meta.partner ? STATE.meta.partner.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'Partner') + '-Certification-Script'; }
+  function serialize() {
+    var clone = document.documentElement.cloneNode(true);
+    ['#app', '#toc', '#mast-meta'].forEach(function (s) { var n = clone.querySelector(s); if (n) n.innerHTML = ''; });
+    var tp = clone.querySelector('#title-partner'); if (tp) tp.textContent = 'Partner';
+    var ts = clone.querySelector('#toast'); if (ts) ts.className = 'toast';
+    clone.querySelector('body').setAttribute('data-mode', 'partner');
+    var st = clone.querySelector('#cert-state'); st.textContent = safeJson(STATE);
+    return '<!DOCTYPE html>\n' + clone.outerHTML;
+  }
+  function setStatus(state, text) { var d = $('#as-dot'), s = $('#as-text'); if (d) d.className = 'autosave-dot' + (state ? ' ' + state : ''); if (s) s.textContent = text; }
+  function detail() {
+    var el = $('#as-detail'); if (!el) return;
+    el.textContent = ['html', 'md', 'pdf'].map(function (k) { return '.' + k + ': ' + (handles[k] ? 'on' : 'off'); }).join('   ');
+  }
+  async function write(kind) {
+    var h = handles[kind]; if (!h) return;
+    var data;
+    try {
+      if (kind === 'html') data = serialize(); else if (kind === 'md') data = certToMarkdown(); else { var d = buildPdf(); if (!d) throw new Error('PDF library missing'); data = d.output('arraybuffer'); }
+      var w = await h.createWritable(); await w.write(data); await w.close();
+      setStatus('on', 'Saved ' + new Date().toLocaleTimeString() + ' (' + Object.keys(handles).filter(function (k) { return handles[k]; }).join(', ') + ')');
+    } catch (e) { handles[kind] = null; setStatus('error', '.' + kind + ' autosave failed - re-enable it'); detail(); }
+  }
+  function cache() { try { localStorage.setItem(LS_KEY, serialize()); if (!handles.html) setStatus('cached', 'Saved in this browser - enable file autosave or download a copy'); } catch (e) { setStatus('error', 'Could not cache changes locally'); } }
+  function schedule() {
+    cache();
+    ['html', 'md', 'pdf'].forEach(function (k) { if (handles[k]) { clearTimeout(timers[k]); timers[k] = setTimeout(function () { write(k); }, DEB[k]); } });
+  }
+  function download(name, data, type) { var b = new Blob([data], { type: type }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 1000); }
+  async function enable(kind) {
+    try {
+      var types = { html: { description: 'HTML file', accept: { 'text/html': ['.html'] } }, md: { description: 'Markdown file', accept: { 'text/markdown': ['.md'] } }, pdf: { description: 'PDF file', accept: { 'application/pdf': ['.pdf'] } } };
+      handles[kind] = await window.showSaveFilePicker({ suggestedName: base() + '.' + kind, types: [types[kind]] });
+      detail(); await write(kind);
+    } catch (e) { /* cancelled */ }
+  }
+  function rebind() {
+    var canFs = 'showSaveFilePicker' in window;
+    ['html', 'md', 'pdf'].forEach(function (k) { var b = $('#en-' + k); if (!b) return; if (canFs) { b.style.display = 'inline-block'; b.onclick = function () { if (k === 'pdf' && !(window.jspdf && window.jspdf.jsPDF)) { toast('PDF library not bundled in this file'); return; } enable(k); }; } });
+    if (!canFs) { var f = $('#fallback'); if (f) f.classList.add('show'); setStatus('cached', 'Edits cached in this browser'); }
+    var dl = $('#dl-all');
+    if (dl) dl.onclick = function () {
+      download(base() + '.html', serialize(), 'text/html'); download(base() + '.md', certToMarkdown(), 'text/markdown');
+      var d = buildPdf(); if (d) download(base() + '.pdf', d.output('blob'), 'application/pdf'); setStatus('on', 'Downloaded .html, .md and .pdf');
+    };
+    detail();
+    if (!rebind.checked) { rebind.checked = true; try { var cached = localStorage.getItem(LS_KEY); if (cached && cached !== serialize()) { var rb = $('#restore-banner'); if (rb) rb.classList.add('show'); } } catch (e) { } }
+    var rb2 = $('#restore-btn'); if (rb2) rb2.onclick = function () { var c = localStorage.getItem(LS_KEY); if (c) { document.open(); document.write(c); document.close(); } };
+    var db = $('#dismiss-restore'); if (db) db.onclick = function () { $('#restore-banner').classList.remove('show'); };
+  }
+  return { schedule: schedule, rebind: rebind, serialize: serialize, download: download, base: base };
+})();
+
+// ===== Event wiring =====
+function changed(light) { if (!light) refreshDerived(); autosave.schedule(); }
+function cardOf(el) { return el.closest('.scn'); }
+function copy(text, msg) { if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { toast(msg || 'Copied'); }); else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast(msg || 'Copied'); } }
+function applyStatusClass(card, st) { card.className = card.className.replace(/\bs-\w+/g, '').trim() + ' s-' + st; }
+function setStatusFor(card, st) {
+  var id = card.getAttribute('data-id'), r = res(id); r.status = st;
+  applyStatusClass(card, st);
+  var cb = $('input[data-action=quick-pass]', card); cb.checked = st === 'pass';
+  $('.status-select', card).value = st;
+  if (st !== 'not_run' && !r.ts) { r.ts = new Date().toISOString(); var ti = $('[data-field=ts]', card); if (ti) ti.value = r.ts; }
+}
+function curlOf(sc) {
+  var e = sc.endpoints[0], r = res(sc.id);
+  var body = sc.requestExample ? " \\\n  -d '" + requestText(sc).replace(/'/g, "'\\''") + "'" : '';
+  return 'curl -X ' + e.method + ' "https://api.uat.payroc.com' + e.path + '" \\\n  -H "Authorization: Bearer $PAYROC_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -H "Idempotency-Key: ' + (r.idem || '<uuid-v4>') + '"' + body;
+}
+document.addEventListener('click', function (ev) {
+  var t = ev.target, a = t.closest('[data-action]'); if (!a) return;
+  var act = a.getAttribute('data-action'), card = cardOf(a);
+  if (act === 'toggle-scn') { if (t.closest('input,select')) return; var id = card.getAttribute('data-id'); card.classList.toggle('open'); STATE.collapsed['scn:' + id] = !card.classList.contains('open'); return; }
+  if (act === 'toggle-sec') { var s = a.closest('.sec'); s.classList.toggle('collapsed'); STATE.collapsed['sec:' + s.getAttribute('data-sec')] = s.classList.contains('collapsed'); return; }
+  if (act === 'jump') { ev.preventDefault(); var sc = $('#scn-' + a.getAttribute('data-id')); if (sc) { var sec = sc.closest('.sec'); sec.classList.remove('collapsed'); sc.classList.add('open'); sc.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
+  if (act === 'goto-blockers') { $('#blockers').scrollIntoView({ behavior: 'smooth' }); return; }
+  if (act === 'quick-pass' || act === 'status') return;
+  if (act === 'copy-tag') { copy(tagOf(card.getAttribute('data-id')), 'Test Tag copied'); return; }
+  if (act === 'copy-rq') { copy($('pre.code-block', card).textContent, 'Request body copied'); return; }
+  if (act === 'copy-curl') { copy(curlOf(scenarioById(card.getAttribute('data-id'))), 'cURL copied'); return; }
+  if (act === 'now') { var r = res(card.getAttribute('data-id')); r.ts = new Date().toISOString(); $('[data-field=ts]', card).value = r.ts; changed(true); return; }
+  if (act === 'gen-uuid') { var r2 = res(card.getAttribute('data-id')); r2.idem = uuid(); $('[data-field=idem]', card).value = r2.idem; refreshRequest(card); changed(true); return; }
+  if (act === 'parse-paste') {
+    var id2 = card.getAttribute('data-id'), sc2 = scenarioById(id2), r3 = res(id2), txt = $('[data-paste]', card).value;
+    if (!txt.trim()) { toast('Paste something first'); return; }
+    var p = parsePaste(txt, sc2); ['http', 'ts', 'idem', 'resourceId', 'corrId'].forEach(function (k) { if (p[k]) { r3[k] = p[k]; $('[data-field=' + k + ']', card).value = p[k]; } });
+    r3.excerpt = p.excerpt; $('[data-paste]', card).value = p.excerpt;
+    if (r3.status === 'not_run' && p.http && sc2.expectedStatus) { setStatusFor(card, String(p.http) === String(sc2.expectedStatus) ? 'pass' : 'fail'); toast('Result set from HTTP status - check it'); } else toast('Fields extracted (card numbers and secrets masked)');
+    changed(); return;
+  }
+  if (act === 'exclude') { var why = window.prompt('Why is this scenario not applicable? (optional)', ''); if (why === null) return; STATE.manualExclude[card.getAttribute('data-id')] = why || true; render(); autosave.schedule(); return; }
+  if (act === 'include') { var iid = a.getAttribute('data-id'); delete STATE.manualExclude[iid]; STATE.manualInclude[iid] = true; render(); autosave.schedule(); return; }
+  if (act === 'del-custom') { var cid = card.getAttribute('data-id'); STATE.custom = STATE.custom.filter(function (x) { return x.id !== cid; }); delete STATE.results[cid]; render(); autosave.schedule(); return; }
+  if (act === 'add-custom') {
+    var secId = a.closest('.sec').getAttribute('data-sec'), n = STATE.custom.length + 1;
+    STATE.custom.push({ id: 'CUS-' + ('0' + n).slice(-2), custom: true, section: secId, title: 'New scenario', tier: 'recommended', kind: 'edge', platform: 'both', steps: ['Describe the step'], expected: '', endpoints: [] });
+    STATE.collapsed['scn:CUS-' + ('0' + n).slice(-2)] = false; render(); autosave.schedule(); return;
+  }
+  if (act === 'add-manual') { STATE.manual.push({ status: 'Needs follow-up', text: '', owner: '' }); $('#blockers-body').innerHTML = blockersHtml(); autosave.schedule(); return; }
+  if (act === 'del-manual') { STATE.manual.splice(+a.getAttribute('data-i'), 1); $('#blockers-body').innerHTML = blockersHtml(); autosave.schedule(); return; }
+  if (act === 'copy-search') { copy(($('#splunk-body')._tpl || '{tag}').replace(/\{tag\}/g, a.getAttribute('data-tag')), 'Search copied'); return; }
+  if (act === 'copy-all-search') { var sb = $('#splunk-body'), tpl = sb._tpl, tags = sb._tags || []; copy(tags.length ? tpl.replace(/"?\{tag\}"?/, '(' + tags.map(function (x) { return '"' + x + '"'; }).join(' OR ') + ')') : '', 'Combined search copied'); return; }
+  if (act === 'copy-evidence-csv') {
+    var lines = ['scenarioId,testTag,timestamp,httpStatus,resourceId,result,verified'];
+    allScenarios().forEach(function (sc) { if (isIncluded(sc) && res(sc.id).status !== 'not_run') { var r4 = res(sc.id); lines.push([sc.id, tagOf(sc.id), r4.ts || '', r4.http || '', r4.resourceId || '', r4.status, r4.verified ? 'true' : 'false'].map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(',')); } });
+    copy(lines.join('\n'), 'Evidence CSV copied'); return;
+  }
+});
+function refreshRequest(card) { var pre = $('pre.code-block', card); if (pre) pre.textContent = requestText(scenarioById(card.getAttribute('data-id'))); var tg = $('[data-tag]', card); if (tg) tg.textContent = tagOf(card.getAttribute('data-id')); }
+
+document.addEventListener('change', function (ev) {
+  var t = ev.target, card = cardOf(t);
+  if (t.matches('select.status-select')) { setStatusFor(card, t.value); changed(); return; }
+  if (t.matches('input[data-action=quick-pass]')) { setStatusFor(card, t.checked ? 'pass' : 'not_run'); changed(); return; }
+  if (t.id === 'mode') { STATE.meta.mode = t.value; document.body.setAttribute('data-mode', t.value); autosave.schedule(); return; }
+  if (t.matches('input[data-field=verified]')) { res(card.getAttribute('data-id')).verified = t.checked; card.classList.toggle('verified', t.checked); changed(); return; }
+  if (t.matches('[data-owner]')) { res(t.getAttribute('data-owner')).owner = t.value; autosave.schedule(); return; }
+  if (t.matches('[data-target]')) { res(t.getAttribute('data-target')).target = t.value; autosave.schedule(); return; }
+  if (t.matches('[data-mstatus]')) { STATE.manual[+t.getAttribute('data-mstatus')].status = t.value; autosave.schedule(); return; }
+  if (t.matches('[data-bind="meta.env"]')) { STATE.meta.env = t.value; autosave.schedule(); return; }
+});
+document.addEventListener('input', function (ev) {
+  var t = ev.target, card = cardOf(t);
+  if (t.matches('[data-bind]')) {
+    var p = t.getAttribute('data-bind'); setPath(STATE, p, t.value);
+    if (p === 'meta.partner') { $('#title-partner').textContent = t.value || 'Partner'; if (!STATE.meta._runIdEdited) { STATE.meta.certRunId = runId(t.value); var ci = $('[data-bind="meta.certRunId"]'); if (ci) ci.value = STATE.meta.certRunId; } }
+    if (p === 'meta.certRunId') { STATE.meta._runIdEdited = true; $$('.scn').forEach(refreshRequest); renderSplunk(); }
+    if (p === 'meta.splunkTemplate') renderSplunk();
+    autosave.schedule(); return;
+  }
+  if (t.matches('[data-mtext]')) { STATE.manual[+t.getAttribute('data-mtext')].text = t.value; autosave.schedule(); return; }
+  if (t.matches('[data-mowner]')) { STATE.manual[+t.getAttribute('data-mowner')].owner = t.value; autosave.schedule(); return; }
+  if (!card) return;
+  var id = card.getAttribute('data-id'), r = res(id);
+  if (t.matches('[data-field]')) {
+    var f = t.getAttribute('data-field');
+    if (f === 'attempt') { r.attempt = Math.max(1, parseInt(t.value, 10) || 1); refreshRequest(card); renderSplunk(); }
+    else if (f === 'verified') { return; }
+    else { r[f] = t.value; if (f === 'idem') refreshRequest(card); if (f === 'reason') $('#blockers-body').innerHTML = blockersHtml(); }
+    autosave.schedule(); return;
+  }
+  if (t.matches('[data-edit]')) {
+    var k = t.getAttribute('data-edit'); r.edits = r.edits || {};
+    r.edits[k] = k === 'steps' ? $$('li', t).map(function (li) { return li.textContent; }).join('\n') : t.innerText;
+    if (k === 'title') $('.scn-title', card).textContent = t.innerText;
+    autosave.schedule();
+  }
+});
+document.addEventListener('click', function (ev) {
+  var id = ev.target.id;
+  if (id === 'imp-sd') $('#file-sd').click();
+  if (id === 'imp-res') $('#file-res').click();
+  if (id === 'dl-csv') autosave.download('certification-results-template.csv', 'scenarioId,testTag,timestamp,httpStatus,resourceId,result,notes\n', 'text/csv');
+});
+document.addEventListener('change', function (ev) {
+  var t = ev.target;
+  if (t.id === 'file-sd' && t.files[0]) {
+    var f = t.files[0], rd = new FileReader();
+    rd.onload = function () { importSD(f.name, String(rd.result)); t.value = ''; };
+    rd.readAsText(f);
+  }
+  if (t.id === 'file-res' && t.files[0]) {
+    var f2 = t.files[0], rd2 = new FileReader();
+    rd2.onload = function () { try { var n = importResultsFile(f2.name, String(rd2.result)); render(); autosave.schedule(); toast('Imported results for ' + n + ' scenario(s)'); } catch (e) { toast('Could not read that file: ' + e.message); } t.value = ''; };
+    rd2.readAsText(f2);
+  }
+});
+function importSD(name, md) {
+  var sd = parseSD(md);
+  if (!Object.keys(sd.sections).length) { toast('No <!-- sd:section --> markers found - is this an SD .md file?'); return; }
+  STATE.tailor = tailor(CATALOG, sd);
+  var m = STATE.meta, fr = sd.front;
+  m.sdFile = name; m.sdVersion = fr.template_version || '';
+  if (fr.partner) { m.partner = fr.partner; if (!m._runIdEdited) m.certRunId = runId(m.partner); }
+  if (fr.partner_contact) m.contact = fr.partner_contact;
+  if (fr.prepared_by && !m.se) m.se = fr.prepared_by;
+  STATE.manualInclude = {}; render(); autosave.schedule();
+  toast('Script tailored: ' + STATE.tailor.included.length + ' scenarios in scope');
+}
+
+window.__cert = { tailor: tailor, parseSD: parseSD, certToMarkdown: certToMarkdown, importResultsMd: importResultsMd, getState: function () { return STATE; }, parsePaste: parsePaste, redact: redact, serialize: autosave.serialize, buildPdf: buildPdf, importResultsFile: importResultsFile, importSD: importSD };
+render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,369 @@
+{
+ "version": 1,
+ "source": "https://docs.payroc.com/workflows (index fetched 2026-10-05)",
+ "supportedContract": "docs-planner/1",
+ "notes": "Maps docs.payroc.com workflow slugs to Solution Design template section ids (template.html). 'also' lists secondary sections. Keep in sync with the docs.payroc.com workflow index; unknown slugs are reported as unmapped, never guessed. close-a-terminal-batch is mapped to reporting (batch/settlement) and check-dcc-eligibility to direct-api as judgement calls - confirm.",
+ "workflows": {
+  "accept-apple-pay": {
+   "section": "wallets",
+   "also": []
+  },
+  "accept-google-pay": {
+   "section": "wallets",
+   "also": []
+  },
+  "add-attachment": {
+   "section": "boarding",
+   "also": []
+  },
+  "add-processing-account": {
+   "section": "boarding",
+   "also": []
+  },
+  "adjust-a-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "adjust-a-refund": {
+   "section": "direct-api",
+   "also": []
+  },
+  "board-a-merchant": {
+   "section": "boarding",
+   "also": []
+  },
+  "cancel-a-device-payment-instruction": {
+   "section": "cloud",
+   "also": []
+  },
+  "cancel-a-device-refund-instruction": {
+   "section": "cloud",
+   "also": []
+  },
+  "cancel-a-device-signature-instruction": {
+   "section": "cloud",
+   "also": []
+  },
+  "capture-signature-on-a-device": {
+   "section": "cloud",
+   "also": []
+  },
+  "check-dcc-eligibility": {
+   "section": "direct-api",
+   "also": []
+  },
+  "check-ebt-balance": {
+   "section": "verification",
+   "also": []
+  },
+  "close-a-terminal-batch": {
+   "section": "reporting",
+   "also": []
+  },
+  "close-ach-return": {
+   "section": "direct-api",
+   "also": []
+  },
+  "collect-with-hosted-fields": {
+   "section": "hosted-fields",
+   "also": []
+  },
+  "collect-with-hosted-payment-page": {
+   "section": "hpp",
+   "also": []
+  },
+  "collect-with-payment-link": {
+   "section": "payment-links",
+   "also": []
+  },
+  "configure-a-device": {
+   "section": "cloud",
+   "also": []
+  },
+  "create-event-subscription": {
+   "section": "reporting",
+   "also": []
+  },
+  "create-merchant-platform": {
+   "section": "boarding",
+   "also": []
+  },
+  "create-pricing-intent": {
+   "section": "boarding",
+   "also": []
+  },
+  "deactivate-a-subscription": {
+   "section": "recurring",
+   "also": []
+  },
+  "delete-a-contact": {
+   "section": "boarding",
+   "also": []
+  },
+  "delete-a-funding-account": {
+   "section": "funding",
+   "also": []
+  },
+  "delete-a-funding-instruction": {
+   "section": "funding",
+   "also": []
+  },
+  "delete-a-funding-recipient": {
+   "section": "funding",
+   "also": []
+  },
+  "delete-a-payment-plan": {
+   "section": "recurring",
+   "also": []
+  },
+  "delete-a-saved-payment-method": {
+   "section": "recurring",
+   "also": []
+  },
+  "delete-an-owner": {
+   "section": "boarding",
+   "also": []
+  },
+  "look-up-bin": {
+   "section": "verification",
+   "also": []
+  },
+  "manage-funding-recipients": {
+   "section": "funding",
+   "also": []
+  },
+  "manage-payment-plans": {
+   "section": "recurring",
+   "also": []
+  },
+  "manage-pricing-intents": {
+   "section": "boarding",
+   "also": []
+  },
+  "manage-subscriptions": {
+   "section": "recurring",
+   "also": []
+  },
+  "order-a-terminal": {
+   "section": "equipment",
+   "also": []
+  },
+  "patch-a-pricing-intent": {
+   "section": "boarding",
+   "also": []
+  },
+  "patch-an-event-subscription": {
+   "section": "reporting",
+   "also": []
+  },
+  "pay-with-single-use-token": {
+   "section": "recurring",
+   "also": []
+  },
+  "reactivate-a-subscription": {
+   "section": "recurring",
+   "also": []
+  },
+  "refresh-a-saved-payment-method": {
+   "section": "recurring",
+   "also": []
+  },
+  "refund-a-bank-transfer-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "refund-a-card-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "refund-on-a-device": {
+   "section": "cloud",
+   "also": []
+  },
+  "replace-a-pricing-intent": {
+   "section": "boarding",
+   "also": []
+  },
+  "represent-ach-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "reverse-a-bank-transfer-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "reverse-a-bank-transfer-refund": {
+   "section": "direct-api",
+   "also": []
+  },
+  "reverse-a-card-payment": {
+   "section": "direct-api",
+   "also": []
+  },
+  "reverse-a-refund": {
+   "section": "direct-api",
+   "also": []
+  },
+  "review-funding-activity": {
+   "section": "funding",
+   "also": []
+  },
+  "review-merchant-hierarchy": {
+   "section": "boarding",
+   "also": []
+  },
+  "review-settlement-reporting": {
+   "section": "reporting",
+   "also": []
+  },
+  "run-a-bank-transfer-sale": {
+   "section": "direct-api",
+   "also": []
+  },
+  "run-a-card-sale": {
+   "section": "direct-api",
+   "also": []
+  },
+  "run-a-pre-authorization": {
+   "section": "direct-api",
+   "also": []
+  },
+  "run-a-sale-on-a-device": {
+   "section": "cloud",
+   "also": []
+  },
+  "run-unreferenced-bank-transfer-refund": {
+   "section": "direct-api",
+   "also": []
+  },
+  "run-unreferenced-card-refund": {
+   "section": "direct-api",
+   "also": []
+  },
+  "save-a-card-with-hosted-fields": {
+   "section": "recurring",
+   "also": [
+    "hosted-fields"
+   ]
+  },
+  "save-a-payment-method": {
+   "section": "recurring",
+   "also": []
+  },
+  "send-funds-to-a-merchant": {
+   "section": "funding",
+   "also": []
+  },
+  "set-up-a-funding-recipient": {
+   "section": "funding",
+   "also": []
+  },
+  "set-up-repeat-payments": {
+   "section": "recurring",
+   "also": []
+  },
+  "update-a-contact": {
+   "section": "boarding",
+   "also": []
+  },
+  "update-a-funding-account": {
+   "section": "funding",
+   "also": []
+  },
+  "update-a-funding-instruction": {
+   "section": "funding",
+   "also": []
+  },
+  "update-a-funding-recipient": {
+   "section": "funding",
+   "also": []
+  },
+  "update-a-payment-plan": {
+   "section": "recurring",
+   "also": []
+  },
+  "update-a-saved-payment-method": {
+   "section": "recurring",
+   "also": []
+  },
+  "update-an-event-subscription": {
+   "section": "reporting",
+   "also": []
+  },
+  "update-an-owner": {
+   "section": "boarding",
+   "also": []
+  },
+  "verify-a-bank-account": {
+   "section": "verification",
+   "also": []
+  },
+  "verify-a-card": {
+   "section": "verification",
+   "also": []
+  }
+ },
+ "worldnetProducts": {
+  "hosted-pages": {
+   "section": "hpp",
+   "label": "Worldnet Hosted Pages"
+  },
+  "rest-api": {
+   "section": "direct-api",
+   "label": "Worldnet Merchant REST API"
+  },
+  "device-instructions": {
+   "section": "cloud",
+   "label": "Worldnet device instructions"
+  },
+  "sdk-pos": {
+   "section": "worldnet-sdks",
+   "label": "Worldnet gochip SDK / Websockets",
+   "worldnetOnly": true
+  },
+  "plugins": {
+   "section": "worldnet-sdks",
+   "label": "Worldnet shopping-cart plugins",
+   "worldnetOnly": true
+  },
+  "wallets": {
+   "section": "wallets",
+   "label": "Apple Pay / Google Pay on Worldnet"
+  },
+  "tokens-subscriptions": {
+   "section": "recurring",
+   "label": "Worldnet tokens, plans & subscriptions"
+  },
+  "verification": {
+   "section": "verification",
+   "label": "Worldnet verification"
+  },
+  "reporting": {
+   "section": "reporting",
+   "label": "Worldnet reporting & notifications"
+  },
+  "selfcare": {
+   "section": "gateway",
+   "label": "Worldnet Selfcare"
+  },
+  "pay-link": {
+   "section": "payment-links",
+   "label": "Worldnet Pay Link / eInvoice"
+  },
+  "boarding-api": {
+   "section": null,
+   "label": "Worldnet Boarding API",
+   "unsupported": true
+  }
+ },
+ "supportedAddendumContract": "sd-worldnet-addendum/1",
+ "derivedSections": {
+  "card-present-ops": {
+   "whenAnyOf": [
+    "cloud",
+    "equipment",
+    "worldnet-sdks"
+   ]
+  }
+ }
+}

@@ -1,0 +1,134 @@
+{
+  "section": "security",
+  "label": "Security attestations",
+  "sourceSkills": [
+    "legacy guide",
+    "set-up-event-subscriptions"
+  ],
+  "openQuestions": [
+    "Specific Payroc security/PCI requirements to confirm with Payroc security"
+  ],
+  "scenarios": [
+    {
+      "id": "SEC-01",
+      "title": "No PAN or CVV in logs",
+      "tier": "required",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Attest card data is never logged.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Log samples show no PAN/CVV/full track data.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    },
+    {
+      "id": "SEC-02",
+      "title": "API key and secrets server-side only",
+      "tier": "required",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Attest keys never ship to browser/mobile.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Keys read from env/secrets manager; none in client bundles or repo.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    },
+    {
+      "id": "SEC-03",
+      "title": "Webhook secret protected",
+      "tier": "required",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [
+        "webhook",
+        "event"
+      ],
+      "objective": "Attest webhook secret in secrets store and compared constant-time.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Evidence of storage and comparison code.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    },
+    {
+      "id": "SEC-04",
+      "title": "Tokens and Authorization headers redacted in logs",
+      "tier": "required",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Attest bearer tokens redacted.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Log sample with redaction.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    },
+    {
+      "id": "SEC-05",
+      "title": "UAT ids and keys not in production config",
+      "tier": "required",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Attest environment separation.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Prod config has no UAT ids, keys or hosts.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    },
+    {
+      "id": "SEC-06",
+      "title": "Owner PII and bank data protected",
+      "tier": "conditional",
+      "kind": "attestation",
+      "platform": "payroc",
+      "appliesWhen": [
+        "boarding",
+        "funding",
+        "owner"
+      ],
+      "objective": "Attest SSN/bank details not logged and minimally stored.",
+      "steps": [
+        "Provide written attestation and a log/config excerpt."
+      ],
+      "expected": "Redaction evidence.",
+      "endpoints": [],
+      "testData": null,
+      "evidence": [
+        "attestation text",
+        "log/config excerpt"
+      ]
+    }
+  ]
+}

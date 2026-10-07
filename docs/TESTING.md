@@ -1,0 +1,12 @@
+# Testing
+
+```bash
+cd payroc-certification/skills/create-certification-script
+python3 -m unittest discover -s tests -v    # catalogue validity, tailoring, build output, Python/JS tailoring parity (needs node)
+python3 scripts/build-cert.py tests/fixtures/sd-hpp-recurring.md --out /tmp/cert
+python3 scripts/review-cert.py /tmp/cert/Acme-Coffee-Software-Certification-Script.html
+```
+
+Manual browser checks (Chrome/Edge): open the built `.html`; change a scenario to Blocked (reason required) and confirm it appears in
+Blockers & follow-ups; paste a sample response and confirm fields extract and card numbers are masked; click Import SD (.md) with a different fixture
+and confirm the scope changes while recorded results stay; enable Autosave .html/.md/.pdf and confirm all three files update; switch to Payroc reviewer view and use the log lookup panel.

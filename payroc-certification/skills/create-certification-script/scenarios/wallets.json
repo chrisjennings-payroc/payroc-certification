@@ -1,0 +1,239 @@
+{
+  "section": "wallets",
+  "label": "8.2f Digital Wallets",
+  "sourceSkills": [
+    "integrate-apple-pay",
+    "integrate-google-pay"
+  ],
+  "openQuestions": [
+    "AP-02/GP-01: orderId 1-24 chars vs Test Tag length; choose a different tagField",
+    "Wallet test cards and decline triggers not documented",
+    "Worldnet wallet equivalents (applePaySessions, DIGITAL_WALLET payload; Elavon only) not authored here; see WN-28 for HPP"
+  ],
+  "scenarios": [
+    {
+      "id": "AP-01",
+      "title": "Apple Pay: start merchant session",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies the Apple Pay session-start call returns a startSessionResponse.",
+      "steps": [
+        "Verify domain in Self-Care and obtain appleDomainId.",
+        "On onvalidatemerchant, POST /v1/payments/apple-pay/sessions with processingTerminalId, appleDomainId and the validationURL verbatim.",
+        "Pass startSessionResponse unwrapped to completeMerchantValidation."
+      ],
+      "expected": "HTTP 200 with startSessionResponse; payment sheet proceeds.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/apple-pay/sessions",
+          "tagField": "appleDomainId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "appleDomainId": "{{APPLE_DOMAIN_ID}}",
+        "appleValidationUrl": "{{VALIDATION_URL}}"
+      },
+      "evidence": [
+        "HTTP status",
+        "processingTerminalId",
+        "appleDomainId"
+      ],
+      "pitfalls": "Terminal-path variant /v1/processing-terminals/{id}/apple-pay-sessions also exists. Success status code not stated."
+    },
+    {
+      "id": "AP-02",
+      "title": "Apple Pay: payment approved",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies the hex-encoded Apple Pay token is accepted.",
+      "steps": [
+        "Authorise in the sheet on an Apple device.",
+        "Hex-encode the token and POST /v1/payments with paymentMethod digitalWallet, serviceProvider apple, encryptedData.",
+        "Call completePayment according to the result."
+      ],
+      "expected": "HTTP 201; transactionResult.responseCode A.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Apple Pay sandbox card in Wallet on an Apple device (setup per Apple)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{SHORT_ORDER_ID}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "digitalWallet",
+          "serviceProvider": "apple",
+          "encryptedData": "{{HEX_ENCODED_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode",
+        "HTTP status"
+      ],
+      "pitfalls": "order.orderId must be 1-24 chars, so the 30-char Test Tag does not fit; embed the Test Tag in an alternative field (open question)."
+    },
+    {
+      "id": "AP-03",
+      "title": "Apple Pay: decline or cancelled sheet",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies decline and user-cancel are handled without a successful payment.",
+      "steps": [
+        "Run a payment with a declining test card; cancel the sheet in a second run."
+      ],
+      "expected": "Decline in transactionResult body; sheet dismissed with failure status; cancel creates no payment.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Decline trigger not documented",
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode"
+      ]
+    },
+    {
+      "id": "AP-04",
+      "title": "Apple Pay: button hidden when unavailable",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies the button is gated on canMakePayments.",
+      "steps": [
+        "Load the checkout in a non-Apple browser."
+      ],
+      "expected": "Apple Pay button is not visible.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/apple-pay/sessions",
+          "tagField": "appleDomainId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "screenshot"
+      ]
+    },
+    {
+      "id": "GP-01",
+      "title": "Google Pay: payment approved",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a Google Pay token routed through Payroc gateway config is accepted.",
+      "steps": [
+        "Configure tokenizationSpecification with the gateway constant and gatewayMerchantId from the Payroc Google Pay guide (terminal ID minus last 3 characters).",
+        "Complete loadPaymentData in TEST environment.",
+        "Hex-encode the token and POST /v1/payments with digitalWallet, serviceProvider google."
+      ],
+      "expected": "HTTP 201; transactionResult.responseCode A.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Google Pay TEST environment; test card via Google's test card suite",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{SHORT_ORDER_ID}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "digitalWallet",
+          "serviceProvider": "google",
+          "encryptedData": "{{HEX_ENCODED_TOKEN}}"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode"
+      ],
+      "pitfalls": "Only the encrypted token is hex-encoded. Success keyed on responseCode A."
+    },
+    {
+      "id": "GP-02",
+      "title": "Google Pay: button gated on isReadyToPay",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies the button renders only when ready.",
+      "steps": [
+        "Check the page in an unsupported environment."
+      ],
+      "expected": "Button not rendered.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "screenshot"
+      ]
+    },
+    {
+      "id": "GP-03",
+      "title": "Google Pay: declined payment",
+      "tier": "conditional",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [
+        "google pay"
+      ],
+      "objective": "Payroc verifies a decline is surfaced.",
+      "steps": [
+        "Complete a Google Pay payment with a declining trigger."
+      ],
+      "expected": "Decline in transactionResult body.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Decline trigger not documented",
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode"
+      ]
+    }
+  ]
+}

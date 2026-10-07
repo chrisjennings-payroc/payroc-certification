@@ -1,0 +1,189 @@
+{
+  "section": "errors",
+  "label": "Error handling",
+  "sourceSkills": [
+    "legacy guide",
+    "create-merchant-platform"
+  ],
+  "openQuestions": [
+    "ERR-06: 429 not documented in sourced skills; rate limits unknown",
+    "ERR-07: how to induce timeouts in UAT left to partner"
+  ],
+  "scenarios": [
+    {
+      "id": "ERR-01",
+      "title": "400 errors[] handled",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify validation errors are mapped.",
+      "steps": [
+        "Send an invalid request.",
+        "Log errors[].parameter/detail/message."
+      ],
+      "expected": "400 problem-details parsed; no blind retry.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "response body"
+      ]
+    },
+    {
+      "id": "ERR-02",
+      "title": "Missing Idempotency-Key",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify header always sent.",
+      "steps": [
+        "Omit the header (cert only)."
+      ],
+      "expected": "400 idempotencyKeyMissing.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 400"
+      ]
+    },
+    {
+      "id": "ERR-03",
+      "title": "409 idempotency conflict",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify check-before-repost.",
+      "steps": [
+        "Reuse a key with a changed body."
+      ],
+      "expected": "409; partner checks whether first POST succeeded.",
+      "expectedStatus": 409,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/pricing-intents",
+          "tagField": "key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 409"
+      ]
+    },
+    {
+      "id": "ERR-04",
+      "title": "401 triggers re-auth",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify 401 handling.",
+      "steps": [
+        "Send an expired token."
+      ],
+      "expected": "Single re-auth then retry.",
+      "expectedStatus": 401,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/processing-accounts/{processingAccountId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "logs"
+      ]
+    },
+    {
+      "id": "ERR-05",
+      "title": "404 unknown resource",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify not-found handling.",
+      "steps": [
+        "GET a nonexistent id."
+      ],
+      "expected": "404; no retry.",
+      "expectedStatus": 404,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/v1/terminal-orders/{terminalOrderId}",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP 404"
+      ]
+    },
+    {
+      "id": "ERR-06",
+      "title": "429 and 5xx retry with same key",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify backoff retries reuse the same Idempotency-Key.",
+      "steps": [
+        "On 5xx (or 429), retry with exponential backoff and identical body/key."
+      ],
+      "expected": "Single resource; bounded retries.",
+      "expectedStatus": 500,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "429 behaviour/Retry-After not documented in sourced skills; 500 backoff is documented.",
+      "evidence": [
+        "attempt log with keys"
+      ]
+    },
+    {
+      "id": "ERR-07",
+      "title": "Network timeout retry",
+      "tier": "required",
+      "kind": "edge",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Verify timeout retry is idempotent.",
+      "steps": [
+        "Simulate timeout; resend identical request with same key."
+      ],
+      "expected": "No duplicate resource.",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/merchant-platforms",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "both attempts"
+      ]
+    }
+  ]
+}

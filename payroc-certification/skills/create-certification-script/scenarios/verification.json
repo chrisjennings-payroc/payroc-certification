@@ -1,0 +1,181 @@
+{
+  "section": "verification",
+  "label": "8.2h Verification and Lookups",
+  "sourceSkills": [
+    "verify-bank-account",
+    "look-up-card-details",
+    "check-ebt-balance"
+  ],
+  "openQuestions": [
+    "VER-01/04: UAT test accounts and failing trigger not documented",
+    "VER-03: card details shape for EBT chip/keyed entry",
+    "Worldnet equivalents (customer/cards/verify, lookup, balance, accounts/verify) not authored"
+  ],
+  "scenarios": [
+    {
+      "id": "VER-01",
+      "title": "Bank account verification",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "bank",
+        "ach",
+        "pad",
+        "verify"
+      ],
+      "objective": "Payroc verifies POST /v1/bank-accounts/verify returns a verified boolean.",
+      "steps": [
+        "POST with processingTerminalId (string) and bankAccount ach including accountType and secCode.",
+        "Read verified."
+      ],
+      "expected": "HTTP 200 with verified true. verified false is a valid outcome, not an error.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-accounts/verify",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "ACH/PAD verification test data not documented (confirm with Payroc)",
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "bankAccount": {
+          "type": "ach",
+          "accountNumber": "{{UAT_ACH_ACCOUNT}}",
+          "nameOnAccount": "Sarah Hazel Hopper",
+          "routingNumber": "053200983",
+          "accountType": "checking",
+          "secCode": "web"
+        }
+      },
+      "evidence": [
+        "HTTP status",
+        "verified",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "Fresh Idempotency-Key for corrected retries. Terminal must be bank-transfer provisioned."
+    },
+    {
+      "id": "VER-02",
+      "title": "BIN lookup",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "bin",
+        "surcharg",
+        "lookup"
+      ],
+      "objective": "Payroc verifies card metadata and surcharging eligibility from a BIN.",
+      "steps": [
+        "POST /v1/cards/bin-lookup with card cardBin, processingTerminalId, amount and currency (no Idempotency-Key).",
+        "Check surcharging.allowed and serviceFee.applicable."
+      ],
+      "expected": "HTTP 200 with card type, country, debit, healthcare and surcharging when terminal configured.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/cards/bin-lookup",
+          "tagField": "orderId (none)"
+        }
+      ],
+      "testData": "Test BIN not documented; skill example uses 411111",
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "amount": 5000,
+        "currency": "USD",
+        "card": {
+          "type": "cardBin",
+          "bin": "411111"
+        }
+      },
+      "evidence": [
+        "HTTP status",
+        "type",
+        "debit",
+        "surcharging"
+      ],
+      "pitfalls": "This endpoint has no merchant reference field; certifier locates the call by timestamp and terminal."
+    },
+    {
+      "id": "VER-03",
+      "title": "EBT balance inquiry",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ebt",
+        "snap",
+        "food stamp",
+        "balance"
+      ],
+      "objective": "Payroc verifies an EBT balance query returns balances.",
+      "steps": [
+        "POST /v1/cards/balance with card ebtDetails.benefitCategory foodStamp or cash on an EBT sharing-group terminal.",
+        "Check responseCode and balances[]."
+      ],
+      "expected": "HTTP 200 responseCode A with balances[] (amount in minor units).",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/cards/balance",
+          "tagField": "operator"
+        }
+      ],
+      "testData": "EBT UAT test cards and PIN per Payroc docs (confirm with Payroc)",
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "currency": "USD",
+        "operator": "{{TEST_TAG}}",
+        "card": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed"
+          },
+          "ebtDetails": {
+            "benefitCategory": "foodStamp"
+          }
+        }
+      },
+      "evidence": [
+        "HTTP status",
+        "responseCode",
+        "balances[]"
+      ],
+      "pitfalls": "No Idempotency-Key. Terminal not in an EBT sharing group returns 400. Card data shape per entry method not fully shown; operator used as tagField."
+    },
+    {
+      "id": "VER-04",
+      "title": "Bank verification failure path",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [
+        "bank",
+        "verify"
+      ],
+      "objective": "Payroc verifies verified false is handled by the application.",
+      "steps": [
+        "Verify an account with invalid details."
+      ],
+      "expected": "HTTP 200 verified false; application prompts the customer to re-enter.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-accounts/verify",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": "Failing-account trigger not documented",
+      "evidence": [
+        "verified",
+        "HTTP status"
+      ]
+    }
+  ]
+}

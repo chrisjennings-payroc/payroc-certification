@@ -1,0 +1,1888 @@
+{
+  "section": "direct-api",
+  "label": "8.2e Direct API Payments",
+  "sourceSkills": [
+    "run-a-card-sale",
+    "run-a-pre-authorization",
+    "run-a-sale-with-3ds",
+    "take-an-ach-payment",
+    "refund-a-card-payment",
+    "refund-an-ach-payment",
+    "worldnet-reference"
+  ],
+  "openQuestions": [
+    "CNP-02/CNP-14/CNP-15/CNP-16 and 3DS-01..03: UAT decline, AVS/CVV, partial approval and 3DS outcome trigger values are not documented in the source skills",
+    "All Payroc scenarios: UAT test card numbers and ACH/PAD test accounts not documented in the source skills",
+    "Test Tag length (about 30 chars) exceeds order.orderId 24-char limit documented for Apple Pay payments and Worldnet ORDERID; decide whether the tag goes in customFields or description",
+    "CNP-05/CNP-06: capture and adjust request body shapes not fully specified in the skill",
+    "CNP-14/CNP-18: billing address and tax object field names not specified",
+    "CNP-19: EBT payment request shape not covered by source skills",
+    "CNP-11: exact status for cumulative over-refund not stated",
+    "WN-02: whether totalAmount is decimal or minor units; WN-03: decline status code; WN-06: refund body; WN-08/WN-09: sandbox test data; production REST base URL not stated",
+    "ACH-08: ACH re-presentment limited and PAD unavailable in UAT",
+    "Worldnet idempotency: no Idempotency-Key documented"
+  ],
+  "scenarios": [
+    {
+      "id": "CNP-01",
+      "title": "Card sale approved (keyed, card-not-present)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a keyed card sale is created and authorised with immediate capture.",
+      "steps": [
+        "Authenticate against the identity service and obtain a Bearer token.",
+        "POST /v1/payments with channel web, autoCapture omitted (default true), a fresh Idempotency-Key and the Test Tag in order.orderId.",
+        "Persist paymentId from the response.",
+        "Inspect transactionResult in the response body, not only the HTTP status."
+      ],
+      "expected": "HTTP 201 with paymentId; transactionResult.responseCode A (approved). HTTP 201 alone does not prove approval.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "HTTP status",
+        "transactionResult.responseCode",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "Amount must be in minor units (5000 = 50.00). expiryDate is MMYY. Do not branch success on a single remembered transactionResult.status value."
+    },
+    {
+      "id": "CNP-02",
+      "title": "Card sale declined",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a decline is surfaced correctly and not treated as a successful payment.",
+      "steps": [
+        "POST /v1/payments using the documented decline trigger.",
+        "Read transactionResult.status and responseCode in the response body.",
+        "Confirm the application does not mark the order paid and does not auto-retry."
+      ],
+      "expected": "Response carries a decline outcome (responseCode D per skill examples) in the body; no paymentId should be treated as captured.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status",
+        "transactionResult.responseCode",
+        "HTTP status"
+      ],
+      "pitfalls": "The API can return 201 for an issuer decline; the decline is in the body."
+    },
+    {
+      "id": "CNP-03",
+      "title": "Pre-authorization created",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "pre-authorization",
+        "authorization"
+      ],
+      "objective": "Payroc verifies funds can be held by setting autoCapture false and processAsSale false.",
+      "steps": [
+        "POST /v1/payments with autoCapture false and processAsSale false.",
+        "Persist paymentId to durable storage.",
+        "Confirm the response is an authorisation, not a captured sale."
+      ],
+      "expected": "HTTP 201 with paymentId; responseCode A. The payment is not captured. Terminal must have pre-authorization enabled.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        },
+        "autoCapture": false,
+        "processAsSale": false
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status",
+        "transactionResult.responseCode"
+      ],
+      "pitfalls": "If either flag is omitted or the terminal is not enabled, the request processes as a sale."
+    },
+    {
+      "id": "CNP-04",
+      "title": "Capture a pre-authorization in full",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "capture",
+        "authorization"
+      ],
+      "objective": "Payroc verifies a full capture of an existing pre-authorization.",
+      "steps": [
+        "Create a pre-auth (CNP-03).",
+        "POST /v1/payments/{paymentId}/capture with no body (or {}) and a new Idempotency-Key.",
+        "Check transactionResult in the response."
+      ],
+      "expected": "HTTP 200 with payment object; transactionResult.responseCode A.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/capture",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "requestExample": {},
+      "evidence": [
+        "paymentId",
+        "HTTP status",
+        "transactionResult.responseCode",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "Use a fresh Idempotency-Key; never reuse the create key."
+    },
+    {
+      "id": "CNP-05",
+      "title": "Partial capture of a pre-authorization",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "partial capture",
+        "capture",
+        "pre-auth"
+      ],
+      "objective": "Payroc verifies a capture for less than the authorised amount.",
+      "steps": [
+        "Create a pre-auth for 10000.",
+        "POST /v1/payments/{paymentId}/capture with a lower amount in the capture body.",
+        "Verify captured amount in the response."
+      ],
+      "expected": "HTTP 200; captured amount equals the requested lower amount.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/capture",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "paymentCapture": {
+          "amount": 8000
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "captured amount",
+        "HTTP status"
+      ],
+      "pitfalls": "Capturing more than the hold requires the adjust endpoint first. Confirm the exact capture body shape against the API schema."
+    },
+    {
+      "id": "CNP-06",
+      "title": "Adjust a pre-authorization then capture",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "adjust",
+        "incremental",
+        "pre-auth"
+      ],
+      "objective": "Payroc verifies the authorised amount can be adjusted before capture.",
+      "steps": [
+        "Create a pre-auth.",
+        "POST /v1/payments/{paymentId}/adjust with the new amount.",
+        "Capture the adjusted amount."
+      ],
+      "expected": "Adjust returns HTTP 200; subsequent capture succeeds for the adjusted amount.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/adjust",
+          "tagField": "Idempotency-Key"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/capture",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentId",
+        "HTTP status"
+      ],
+      "pitfalls": "A payment cannot be adjusted after it has been captured or reversed. Adjust request body is not detailed in the source skill."
+    },
+    {
+      "id": "CNP-07",
+      "title": "Void a pre-authorization (reverse)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pre-auth",
+        "void",
+        "reversal",
+        "reverse"
+      ],
+      "objective": "Payroc verifies a hold can be released with a reversal and cannot then be captured.",
+      "steps": [
+        "Create a pre-auth.",
+        "POST /v1/payments/{paymentId}/reverse with a new Idempotency-Key.",
+        "Attempt a capture and confirm it is rejected."
+      ],
+      "expected": "Reverse returns HTTP 200; later capture is rejected.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/reverse",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentId",
+        "HTTP status"
+      ],
+      "pitfalls": "Reversal is permanent."
+    },
+    {
+      "id": "CNP-08",
+      "title": "Void a sale in an open batch (reversal)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "void",
+        "reversal",
+        "reverse"
+      ],
+      "objective": "Payroc verifies an approved sale can be voided before settlement.",
+      "steps": [
+        "Run a sale (CNP-01) and do not wait for batch close.",
+        "POST /v1/payments/{paymentId}/reverse.",
+        "Retrieve the payment and confirm its state."
+      ],
+      "expected": "HTTP 200; payment is voided/reversed and no funds settle.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/reverse",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentId",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "CNP-09",
+      "title": "Referenced refund (full) of a card payment",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "refund"
+      ],
+      "objective": "Payroc verifies a referenced refund against an existing paymentId.",
+      "steps": [
+        "Use a settled (closed-batch) payment, or accept that an open-batch payment is reversed instead.",
+        "POST /v1/payments/{paymentId}/refund with amount and description.",
+        "Capture refundId from payment.refunds[]."
+      ],
+      "expected": "HTTP 200 with the payment object containing a refunds[] entry (refundId, status, amount, responseCode). On an open batch the gateway reverses instead of refunding.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/refund",
+          "tagField": "description"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "amount": 5000,
+        "description": "{{TEST_TAG}}"
+      },
+      "evidence": [
+        "paymentId",
+        "refundId",
+        "HTTP status",
+        "Idempotency-Key"
+      ],
+      "pitfalls": "amount and description are both required. For the refund endpoint the Test Tag goes in description."
+    },
+    {
+      "id": "CNP-10",
+      "title": "Referenced partial refund",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "refund",
+        "partial refund"
+      ],
+      "objective": "Payroc verifies a refund for less than the original amount.",
+      "steps": [
+        "Select a payment of 5000.",
+        "POST /v1/payments/{paymentId}/refund with amount 2000 and description.",
+        "Retrieve the payment and confirm refunds[]."
+      ],
+      "expected": "HTTP 200; refunds[] shows amount 2000.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/refund",
+          "tagField": "description"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "amount": 2000,
+        "description": "{{TEST_TAG}}"
+      },
+      "evidence": [
+        "paymentId",
+        "refundId",
+        "amount"
+      ]
+    },
+    {
+      "id": "CNP-11",
+      "title": "Refund exceeding the original amount is rejected",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [
+        "refund"
+      ],
+      "objective": "Payroc verifies an over-refund is rejected.",
+      "steps": [
+        "POST /v1/payments/{paymentId}/refund with amount greater than the original payment amount (or cumulative refunds beyond it)."
+      ],
+      "expected": "Request is rejected (4xx, expected 400 validation per skill: amount must be <= original). No refund is created.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments/{paymentId}/refund",
+          "tagField": "description"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "amount": 999999,
+        "description": "{{TEST_TAG}}"
+      },
+      "evidence": [
+        "paymentId",
+        "HTTP status",
+        "errors[].parameter"
+      ],
+      "pitfalls": "Exact status code for cumulative over-refund is not stated in the skill; confirm."
+    },
+    {
+      "id": "CNP-12",
+      "title": "Unreferenced refund (card)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "unreferenced refund",
+        "unreferenced"
+      ],
+      "objective": "Payroc verifies a standalone refund with card details and no paymentId.",
+      "steps": [
+        "Confirm the terminal is enabled for unreferenced refunds.",
+        "POST /v1/refunds with channel pos or moto, order (orderId, description, amount, currency) and refundMethod card.",
+        "Capture refundId."
+      ],
+      "expected": "HTTP 201 with refundId. A 403 means the terminal is not enabled.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/refunds",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "moto",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "description": "Cert unreferenced refund",
+          "amount": 3000,
+          "currency": "USD"
+        },
+        "refundMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "refundId",
+        "HTTP status"
+      ],
+      "pitfalls": "channel is pos or moto only for refunds. All four order fields are required."
+    },
+    {
+      "id": "CNP-13",
+      "title": "Reverse (void) a card refund",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "refund",
+        "reverse refund"
+      ],
+      "objective": "Payroc verifies a refund in an open batch can be reversed.",
+      "steps": [
+        "Create a refund (CNP-09 or CNP-12).",
+        "POST /v1/refunds/{refundId}/reverse.",
+        "Retrieve the refund and check transactionResult.status."
+      ],
+      "expected": "HTTP 200; transactionResult.status is reversal.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/refunds/{refundId}/reverse",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "refundId",
+        "HTTP status",
+        "transactionResult.status"
+      ],
+      "pitfalls": "Permanent; only while the refund is in an open batch."
+    },
+    {
+      "id": "CNP-14",
+      "title": "AVS and CVV data submitted",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "avs",
+        "cvv",
+        "address verification"
+      ],
+      "objective": "Payroc verifies billing address data is accepted and AVS/CVV outcomes are returned.",
+      "steps": [
+        "POST /v1/payments with cardholder CVV and customer.billingAddress populated.",
+        "Record any AVS/CVV result returned in the response."
+      ],
+      "expected": "HTTP 201; address and CVV evaluated by the issuer. Response fields for AVS/CVV results are not documented in the source skills.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        },
+        "customer": {
+          "billingAddress": {
+            "address1": "1 Main St",
+            "city": "Chicago",
+            "country": "US",
+            "postalCode": "60601"
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult",
+        "HTTP status"
+      ],
+      "pitfalls": "Billing address sub-field names are not specified in the source skill; confirm against the API schema."
+    },
+    {
+      "id": "CNP-15",
+      "title": "Partial approval handled",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "partial approval",
+        "partial auth",
+        "acceptpartialamount"
+      ],
+      "objective": "Payroc verifies a partial authorisation is handled when acceptPartialAmount is true.",
+      "steps": [
+        "POST /v1/payments with order.acceptPartialAmount true using the documented trigger.",
+        "Read transactionResult.responseCode and authorizedAmount.",
+        "Confirm the application collects the shortfall."
+      ],
+      "expected": "responseCode P with authorizedAmount lower than the requested amount.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 10000,
+          "currency": "USD",
+          "acceptPartialAmount": true
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.responseCode",
+        "transactionResult.authorizedAmount"
+      ]
+    },
+    {
+      "id": "CNP-16",
+      "title": "Surcharge applied / bypassed",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "surcharge",
+        "surcharging",
+        "service fee"
+      ],
+      "objective": "Payroc verifies surcharge fields are accepted on a payment.",
+      "steps": [
+        "Optionally run BIN lookup (VER-02) to read surcharging.allowed and disclosure.",
+        "POST /v1/payments with order.breakdown.subtotal and breakdown.surcharge.",
+        "Repeat with surcharge.bypass true."
+      ],
+      "expected": "HTTP 201; surcharge reflected in the response amounts when allowed; bypass skips it.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD",
+          "breakdown": {
+            "subtotal": 5000,
+            "surcharge": {
+              "bypass": false,
+              "percentage": 3.0
+            }
+          }
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "amounts",
+        "HTTP status"
+      ],
+      "pitfalls": "Surcharging must be configured on the terminal. Exact response shape not documented in the source skill."
+    },
+    {
+      "id": "CNP-17",
+      "title": "Tip on a sale",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "tip",
+        "gratuity"
+      ],
+      "objective": "Payroc verifies tip data is accepted in the order breakdown.",
+      "steps": [
+        "POST /v1/payments with breakdown.subtotal and breakdown.tip (type fixedAmount or percentage; mode prompted or adjusted).",
+        "Confirm the total reflects the tip."
+      ],
+      "expected": "HTTP 201; total includes the tip.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5500,
+          "currency": "USD",
+          "breakdown": {
+            "subtotal": 5000,
+            "tip": {
+              "type": "fixedAmount",
+              "mode": "prompted",
+              "amount": 500
+            }
+          }
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "total amount"
+      ],
+      "pitfalls": "tip.mode adjusted is mainly for card-present flows; confirm applicability for CNP."
+    },
+    {
+      "id": "CNP-18",
+      "title": "Level 2/3 data (taxes and line items)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "level 2",
+        "level 3",
+        "level ii",
+        "level iii",
+        "l2",
+        "l3",
+        "enhanced data",
+        "tax"
+      ],
+      "objective": "Payroc verifies enhanced-data fields are accepted for L2/L3 interchange.",
+      "steps": [
+        "POST /v1/payments with breakdown.subtotal and breakdown.taxes (type amount or rate).",
+        "For L3 add dutyAmount, freightAmount and items with commodityCode, productCode, description, unitPrice, quantity."
+      ],
+      "expected": "HTTP 201 with the data accepted.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use a Payroc UAT test card from docs.payroc.com (card number not documented in the source skills; confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5400,
+          "currency": "USD",
+          "breakdown": {
+            "subtotal": 5000,
+            "taxes": [
+              {
+                "type": "amount",
+                "name": "Sales tax",
+                "amount": 400
+              }
+            ]
+          }
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "HTTP status"
+      ],
+      "pitfalls": "Tax object value field names are not fully specified in the source skill; confirm against the API schema. Qualifying also needs a commercial/purchasing card."
+    },
+    {
+      "id": "CNP-19",
+      "title": "EBT card payment",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ebt",
+        "snap",
+        "food stamp"
+      ],
+      "objective": "Payroc verifies an EBT sale is accepted on an EBT-provisioned terminal.",
+      "steps": [
+        "Confirm the terminal is in an EBT sharing group.",
+        "Run an EBT purchase via POST /v1/payments per Payroc EBT documentation.",
+        "Record the result."
+      ],
+      "expected": "Approved EBT transaction on the correct benefit category.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the EBT UAT test cards documented by Payroc (confirm with Payroc)",
+      "evidence": [
+        "paymentId",
+        "HTTP status",
+        "transactionResult"
+      ],
+      "pitfalls": "EBT payment request shape is not covered by the source skills; only the balance inquiry is (see VER-03)."
+    },
+    {
+      "id": "3DS-01",
+      "title": "3-D Secure frictionless authentication then sale",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure",
+        "mpi",
+        "sca"
+      ],
+      "objective": "Payroc verifies the MPI flow and a payment posted with the mpiReference when no challenge is needed.",
+      "steps": [
+        "Obtain a single-use token (TOK-01 or Hosted Fields).",
+        "GET https://payments.uat.payroc.com/merchant/mpi with processingTerminalId, singleUseToken, email, amount, currency, orderId (Bearer auth).",
+        "Receive the asynchronous GET callback; confirm result A, store mpiReference.",
+        "POST /v1/payments with channel web, paymentMethod singleUseToken and threeDSecure {serviceProvider gateway, mpiReference}."
+      ],
+      "expected": "Callback result A with eci 05 or 06; payment HTTP 201 with paymentId.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/merchant/mpi (payments.uat.payroc.com)",
+          "tagField": "orderId"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "singleUseToken",
+          "token": "{{SINGLE_USE_TOKEN}}"
+        },
+        "threeDSecure": {
+          "serviceProvider": "gateway",
+          "mpiReference": "{{MPI_REFERENCE}}"
+        }
+      },
+      "evidence": [
+        "orderId",
+        "mpiReference",
+        "callback result/status/eci",
+        "paymentId"
+      ],
+      "pitfalls": "Callback is a GET, not POST. MPI host differs from API host. orderId, amount, currency must match between MPI and payment."
+    },
+    {
+      "id": "3DS-02",
+      "title": "3-D Secure challenge then sale",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure",
+        "mpi",
+        "sca"
+      ],
+      "objective": "Payroc verifies the cardholder challenge path (cardholderChallenge REQUIRED) completes and the payment posts.",
+      "steps": [
+        "Send the MPI request with cardholderChallenge=REQUIRED.",
+        "Complete the challenge as the cardholder.",
+        "On callback result A, post the payment with mpiReference."
+      ],
+      "expected": "Callback result A after challenge; payment HTTP 201.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/merchant/mpi (payments.uat.payroc.com)",
+          "tagField": "orderId"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "evidence": [
+        "orderId",
+        "mpiReference",
+        "paymentId"
+      ]
+    },
+    {
+      "id": "3DS-03",
+      "title": "3-D Secure authentication failed - payment not posted",
+      "tier": "conditional",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure",
+        "mpi",
+        "sca"
+      ],
+      "objective": "Payroc verifies a declined MPI result stops the payment.",
+      "steps": [
+        "Send an MPI request with the documented failing-authentication trigger.",
+        "Receive callback with result D.",
+        "Confirm no POST /v1/payments is sent."
+      ],
+      "expected": "Callback result D; no payment created.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/merchant/mpi (payments.uat.payroc.com)",
+          "tagField": "orderId"
+        }
+      ],
+      "testData": "Use the UAT trigger documented at docs.payroc.com/... (confirm with Payroc)",
+      "evidence": [
+        "orderId",
+        "callback result/status/eci"
+      ],
+      "pitfalls": "Branch on result, not status; both use A with different meanings."
+    },
+    {
+      "id": "ACH-01",
+      "title": "ACH payment (US bank transfer)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer",
+        "echeck"
+      ],
+      "objective": "Payroc verifies an ACH payment is accepted and returns pending status.",
+      "steps": [
+        "POST /v1/bank-transfer-payments with paymentMethod ach (routingNumber, accountNumber, nameOnAccount, accountType, secCode).",
+        "Persist paymentId.",
+        "Poll GET /v1/bank-transfer-payments/{paymentId}."
+      ],
+      "expected": "HTTP 201; transactionResult.status pending (responseCode E) initially. Pending is not a failure.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use ACH test account data documented by Payroc UAT (the skill example uses routing 053200983; confirm with Payroc)",
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 4999,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "ach",
+          "nameOnAccount": "Customer Full Name",
+          "accountNumber": "{{UAT_ACH_ACCOUNT}}",
+          "routingNumber": "053200983",
+          "accountType": "checking",
+          "secCode": "web"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status",
+        "HTTP status"
+      ],
+      "pitfalls": "secCode is mandatory for ACH. Terminal must be ACH-enabled."
+    },
+    {
+      "id": "ACH-02",
+      "title": "PAD payment (Canadian)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pad",
+        "canad"
+      ],
+      "objective": "Payroc verifies a PAD payment using transit and institution numbers.",
+      "steps": [
+        "POST /v1/bank-transfer-payments with paymentMethod pad and currency CAD."
+      ],
+      "expected": "HTTP 201; status pending.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Use PAD UAT test data documented by Payroc (confirm with Payroc)",
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "CAD"
+        },
+        "paymentMethod": {
+          "type": "pad",
+          "nameOnAccount": "Customer Full Name",
+          "accountNumber": "{{UAT_PAD_ACCOUNT}}",
+          "transitNumber": "12345",
+          "institutionNumber": "003",
+          "accountType": "checking"
+        }
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.status"
+      ],
+      "pitfalls": "No secCode for PAD. transitNumber is 5 chars and institutionNumber 3 chars."
+    },
+    {
+      "id": "ACH-03",
+      "title": "ACH payment missing secCode is rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer"
+      ],
+      "objective": "Payroc verifies request validation on a required ACH field.",
+      "steps": [
+        "POST /v1/bank-transfer-payments with type ach and secCode omitted."
+      ],
+      "expected": "HTTP 400 with errors[].parameter naming secCode.",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 1000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "ach",
+          "nameOnAccount": "Customer Full Name",
+          "accountNumber": "{{UAT_ACH_ACCOUNT}}",
+          "routingNumber": "053200983"
+        }
+      },
+      "evidence": [
+        "HTTP status",
+        "errors[].parameter"
+      ]
+    },
+    {
+      "id": "ACH-04",
+      "title": "Reverse an ACH payment in an open batch",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer",
+        "reversal",
+        "void"
+      ],
+      "objective": "Payroc verifies an unsettled ACH payment is voided.",
+      "steps": [
+        "Retrieve the payment and confirm it is unsettled.",
+        "POST /v1/bank-transfer-payments/{paymentId}/reverse (no body)."
+      ],
+      "expected": "HTTP 200; transactionResult.status reversal.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments/{paymentId}/reverse",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "paymentId",
+        "HTTP status",
+        "transactionResult.status"
+      ]
+    },
+    {
+      "id": "ACH-05",
+      "title": "ACH referenced refund on an open batch (auto-reversal)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer",
+        "refund"
+      ],
+      "objective": "Payroc verifies a referenced refund on an unsettled bank transfer converts to a reversal.",
+      "steps": [
+        "POST /v1/bank-transfer-payments/{paymentId}/refund with amount and description on an open-batch payment."
+      ],
+      "expected": "HTTP 200; transactionResult.type payment, status reversal, positive authorizedAmount (expected, not a failure).",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments/{paymentId}/refund",
+          "tagField": "description"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "amount": 4999,
+        "description": "{{TEST_TAG}}"
+      },
+      "evidence": [
+        "paymentId",
+        "transactionResult.type",
+        "transactionResult.status"
+      ]
+    },
+    {
+      "id": "ACH-06",
+      "title": "ACH unreferenced refund (settled payment)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "ach",
+        "bank transfer",
+        "refund"
+      ],
+      "objective": "Payroc verifies the only path to return a settled ACH payment.",
+      "steps": [
+        "Confirm the terminal is enabled for unreferenced refunds.",
+        "POST /v1/bank-transfer-refunds with refundMethod ach (or secureToken).",
+        "Poll GET /v1/bank-transfer-refunds/{refundId}."
+      ],
+      "expected": "HTTP 201 with refundId; transactionResult.type unreferencedRefund, status pending then complete.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-refunds",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "description": "Refund for order",
+          "amount": 4999,
+          "currency": "USD"
+        },
+        "refundMethod": {
+          "type": "ach",
+          "accountNumber": "{{UAT_ACH_ACCOUNT}}",
+          "nameOnAccount": "Sarah Hazel Hopper",
+          "routingNumber": "123456789",
+          "accountType": "checking",
+          "secCode": "web"
+        }
+      },
+      "evidence": [
+        "refundId",
+        "transactionResult.type",
+        "transactionResult.status"
+      ],
+      "pitfalls": "Referenced refund on a settled ACH payment returns 400; use unreferenced. processingTerminalId must be a string. 403 means terminal not enabled."
+    },
+    {
+      "id": "ACH-07",
+      "title": "PAD referenced refund (settled payment)",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "pad"
+      ],
+      "objective": "Payroc verifies a referenced PAD refund.",
+      "steps": [
+        "POST /v1/bank-transfer-payments/{paymentId}/refund with amount and description on a settled PAD payment."
+      ],
+      "expected": "HTTP 200; transactionResult.type refund, negative authorizedAmount, status pending.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments/{paymentId}/refund",
+          "tagField": "description"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "amount": 5000,
+        "description": "{{TEST_TAG}}"
+      },
+      "evidence": [
+        "paymentId",
+        "refunds[]",
+        "transactionResult.status"
+      ],
+      "pitfalls": "Settlement timing in UAT is not documented."
+    },
+    {
+      "id": "ACH-08",
+      "title": "Re-present a returned ACH payment",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "payroc",
+      "appliesWhen": [
+        "represent",
+        "return",
+        "re-present"
+      ],
+      "objective": "Payroc verifies a returned ACH payment can be re-presented using the return's paymentId.",
+      "steps": [
+        "Retrieve the original payment and read returns[].",
+        "POST /v1/bank-transfer-payments/{returns[0].paymentId}/represent."
+      ],
+      "expected": "HTTP 200 with updated payment. Maximum two re-presentments.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/bank-transfer-payments/{returnPaymentId}/represent",
+          "tagField": "Idempotency-Key"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "original paymentId",
+        "return paymentId",
+        "HTTP status"
+      ],
+      "pitfalls": "Use the return's paymentId, not the original. PAD re-presentment unavailable and ACH limited in UAT."
+    },
+    {
+      "id": "CNP-20",
+      "title": "Idempotent retry after timeout then status lookup",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies a timed-out payment is recovered with the same Idempotency-Key and a lookup, without double charging.",
+      "steps": [
+        "Send POST /v1/payments and simulate a client timeout (discard the response).",
+        "Retry the identical request with the same Idempotency-Key and confirm the original response is returned.",
+        "GET /v1/payments?processingTerminalId=...&orderId=... (or GET /v1/payments/{paymentId}) and confirm exactly one payment exists."
+      ],
+      "expected": "Same paymentId returned on retry; one payment exists. Reusing the key with a different body returns 409.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/payments",
+          "tagField": "orderId"
+        }
+      ],
+      "testData": null,
+      "requestExample": {
+        "channel": "web",
+        "processingTerminalId": "{{PAYROC_TERMINAL_ID}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "amount": 5000,
+          "currency": "USD"
+        },
+        "paymentMethod": {
+          "type": "card",
+          "cardDetails": {
+            "entryMethod": "keyed",
+            "cardholderName": "Jane Smith",
+            "keyedData": {
+              "dataFormat": "plainText",
+              "cardNumber": "{{UAT_TEST_CARD}}",
+              "expiryDate": "1226",
+              "cvv": "123"
+            }
+          }
+        }
+      },
+      "evidence": [
+        "Idempotency-Key",
+        "paymentId",
+        "HTTP status"
+      ],
+      "pitfalls": "Idempotency-Key must be a UUID v4. Retry reuses key only for the identical request."
+    },
+    {
+      "id": "CNP-21",
+      "title": "Missing Idempotency-Key and bad enum rejected",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "payroc",
+      "appliesWhen": [],
+      "objective": "Payroc verifies request validation and error envelope.",
+      "steps": [
+        "POST /v1/payments without Idempotency-Key.",
+        "POST with an invalid channel value.",
+        "Read errors[].parameter."
+      ],
+      "expected": "HTTP 400 in both cases with RFC 7807 envelope and errors[].",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/v1/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP status",
+        "type",
+        "errors[].parameter"
+      ]
+    },
+    {
+      "id": "WN-01",
+      "title": "Worldnet: authenticate and obtain JWT",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies API-key authentication yields a Bearer JWT.",
+      "steps": [
+        "GET /api/v1/account/authenticate with the API key (Basic).",
+        "Record expiresIn (hours) and use the Bearer JWT on later calls."
+      ],
+      "expected": "HTTP 200 with a JWT and expiresIn.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/account/authenticate",
+          "tagField": "X-Request-Id"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP status",
+        "X-Request-Id"
+      ],
+      "pitfalls": "JWT lifetime is expiresIn hours and may change; refresh on 401. Never log the API key."
+    },
+    {
+      "id": "WN-02",
+      "title": "Worldnet: card sale approved",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies a WEB keyed sale.",
+      "steps": [
+        "POST /api/v1/transaction/payments with channel WEB and KEYED payload; Test Tag in order.orderId.",
+        "Store uniqueReference.",
+        "Check transaction status in the body."
+      ],
+      "expected": "HTTP 201 with uniqueReference; TransactionResult.status READY or COMPLETE with approval.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Worldnet published test card Visa Credit 4539858876047062, any future expiry, CVV 3 digits (test-data-and-uat.md); use a full Worldnet test account",
+      "requestExample": {
+        "channel": "WEB",
+        "terminal": "{{WORLDNET_TERMINAL}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "currency": "USD",
+          "totalAmount": 5.0
+        },
+        "customerAccount": {
+          "payloadType": "KEYED",
+          "cardholderName": "Jane Smith",
+          "cardDetails": {
+            "cardNumber": "4539858876047062",
+            "expiryDate": "1226",
+            "cvv": "123"
+          }
+        }
+      },
+      "evidence": [
+        "uniqueReference",
+        "X-Request-Id",
+        "HTTP status"
+      ],
+      "pitfalls": "orderId max 24 chars. Digits-only card number. Success only on approval, not on any response. Amount unit (decimal vs minor) should be confirmed against the spec."
+    },
+    {
+      "id": "WN-03",
+      "title": "Worldnet: simulated decline, referral and CVV failure",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies decline handling using the cent-value simulator.",
+      "steps": [
+        "Run sales with totalAmount ending .01 (declined), .02 (referral), .03 (CVV failure), per host simulator.",
+        "Confirm the application does not fulfil."
+      ],
+      "expected": "DECLINED / REFERRAL outcomes in the body; no fulfilment.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "Cent values .01 declined, .02 referral, .03 CVV failure; others approve (e.g. 5.01 declines)",
+      "requestExample": {
+        "channel": "WEB",
+        "terminal": "{{WORLDNET_TERMINAL}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "currency": "USD",
+          "totalAmount": 5.01
+        },
+        "customerAccount": {
+          "payloadType": "KEYED",
+          "cardholderName": "Jane Smith",
+          "cardDetails": {
+            "cardNumber": "4539858876047062",
+            "expiryDate": "1226",
+            "cvv": "123"
+          }
+        }
+      },
+      "evidence": [
+        "uniqueReference",
+        "TransactionResult.status"
+      ],
+      "pitfalls": "Whether declines return 201 or an error status is not stated in the spec; confirm in sandbox."
+    },
+    {
+      "id": "WN-04",
+      "title": "Worldnet: pre-authorization then capture",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "pre-auth",
+        "preauth",
+        "capture",
+        "authorization"
+      ],
+      "objective": "Worldnet verifies autoCapture false then capture.",
+      "steps": [
+        "POST payments with autoCapture false.",
+        "PATCH /api/v1/transaction/payments/{uniqueReference}/capture (optional captureAmount)."
+      ],
+      "expected": "Pre-auth created, capture succeeds.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/transaction/payments/{uniqueReference}/capture",
+          "tagField": "uniqueReference"
+        }
+      ],
+      "testData": "Worldnet published test card Visa Credit 4539858876047062, any future expiry, CVV 3 digits (test-data-and-uat.md); use a full Worldnet test account",
+      "requestExample": {
+        "channel": "WEB",
+        "terminal": "{{WORLDNET_TERMINAL}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "currency": "USD",
+          "totalAmount": 5.0
+        },
+        "customerAccount": {
+          "payloadType": "KEYED",
+          "cardholderName": "Jane Smith",
+          "cardDetails": {
+            "cardNumber": "4539858876047062",
+            "expiryDate": "1226",
+            "cvv": "123"
+          }
+        },
+        "autoCapture": false
+      },
+      "evidence": [
+        "uniqueReference",
+        "HTTP status"
+      ],
+      "pitfalls": "Requires Allow Pre-Auth on the terminal else a PENDING transaction is created. 3DS does not support pre-auths."
+    },
+    {
+      "id": "WN-05",
+      "title": "Worldnet: reverse (void) a payment",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "void",
+        "reversal",
+        "reverse"
+      ],
+      "objective": "Worldnet verifies a reversal of an unsettled payment.",
+      "steps": [
+        "PATCH /api/v1/transaction/payments/{uniqueReference}/reverse with optional reversalAmount and reversalReason."
+      ],
+      "expected": "HTTP 200; status REVERSAL.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/api/v1/transaction/payments/{uniqueReference}/reverse",
+          "tagField": "uniqueReference"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "uniqueReference",
+        "HTTP status"
+      ],
+      "pitfalls": "Spec intro shows a DELETE reverse link; follow the links actually returned."
+    },
+    {
+      "id": "WN-06",
+      "title": "Worldnet: referenced refund (full and partial)",
+      "tier": "required",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "refund"
+      ],
+      "objective": "Worldnet verifies referenced refunds up to 100% cumulative.",
+      "steps": [
+        "POST /api/v1/transaction/payments/{uniqueReference}/refunds for a partial amount.",
+        "Repeat for the remainder; attempt more than 100% and confirm rejection."
+      ],
+      "expected": "Refunds accepted up to the original amount; over-refund rejected (expected 422 business rule).",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments/{uniqueReference}/refunds",
+          "tagField": "uniqueReference"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "uniqueReference",
+        "refund uniqueReference",
+        "HTTP status"
+      ],
+      "pitfalls": "For unsettled payments a refund may become a reversal. Refund request body fields are not detailed in the derived reference."
+    },
+    {
+      "id": "WN-07",
+      "title": "Worldnet: unreferenced refund",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "unreferenced refund",
+        "unreferenced"
+      ],
+      "objective": "Worldnet verifies standalone refunds (account must be enabled).",
+      "steps": [
+        "Confirm enablement with Worldnet support and acquirer approval.",
+        "POST /api/v1/transaction/refunds."
+      ],
+      "expected": "HTTP 201 with refund uniqueReference.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/refunds",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "refund uniqueReference",
+        "HTTP status"
+      ],
+      "pitfalls": "Needs a full test account, not the shared sandbox."
+    },
+    {
+      "id": "WN-08",
+      "title": "Worldnet: bank transfer (ACH/PAD) payment and reversal",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "ach",
+        "pad",
+        "bank transfer"
+      ],
+      "objective": "Worldnet verifies bank transfer payments and open-batch reversal.",
+      "steps": [
+        "POST /api/v1/bankTransfer/payments with ACH or PAD payload.",
+        "GET the payment, then PATCH .../reverse while open."
+      ],
+      "expected": "Payment accepted; reversal succeeds before settlement.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/bankTransfer/payments",
+          "tagField": "order.orderId"
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/v1/bankTransfer/payments/{uniqueReference}/reverse",
+          "tagField": "uniqueReference"
+        }
+      ],
+      "testData": "Sandbox test data for ACH/PAD is not documented (confirm with Worldnet)",
+      "evidence": [
+        "uniqueReference",
+        "HTTP status"
+      ]
+    },
+    {
+      "id": "WN-09",
+      "title": "Worldnet: 3-D Secure (MPI) then payment",
+      "tier": "conditional",
+      "kind": "happy",
+      "platform": "worldnet",
+      "appliesWhen": [
+        "3ds",
+        "3-d secure",
+        "3d secure",
+        "mpi"
+      ],
+      "objective": "Worldnet verifies MPI flow and threeDSecure GATEWAY on a WEB payment.",
+      "steps": [
+        "POST to the MPI page; receive RESULT/MPIREF/STATUS/ECI on the MPI Receipt URL.",
+        "POST payment with threeDSecure {serviceProvider GATEWAY, mpiReference}."
+      ],
+      "expected": "RESULT A (ECI 05/06/07 per spec) then payment succeeds; RESULT D blocks payment.",
+      "expectedStatus": 201,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/merchant/mpi",
+          "tagField": "orderId"
+        },
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": "3DS challenge test data not documented (confirm with Worldnet)",
+      "requestExample": {
+        "channel": "WEB",
+        "terminal": "{{WORLDNET_TERMINAL}}",
+        "order": {
+          "orderId": "{{TEST_TAG}}",
+          "currency": "USD",
+          "totalAmount": 5.0
+        },
+        "customerAccount": {
+          "payloadType": "KEYED",
+          "cardholderName": "Jane Smith",
+          "cardDetails": {
+            "cardNumber": "4539858876047062",
+            "expiryDate": "1226",
+            "cvv": "123"
+          }
+        },
+        "threeDSecure": {
+          "serviceProvider": "GATEWAY",
+          "mpiReference": "{{MPI_REFERENCE}}"
+        }
+      },
+      "evidence": [
+        "orderId",
+        "MPIREF",
+        "uniqueReference"
+      ],
+      "pitfalls": "Requires 3DS enabled on terminal and an MPI Receipt URL; not supported for pre-auth."
+    },
+    {
+      "id": "WN-10",
+      "title": "Worldnet: timeout recovery via lookup (no idempotency key)",
+      "tier": "required",
+      "kind": "negative",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies a timed-out payment is resolved by lookup before retry, since no Idempotency-Key is documented.",
+      "steps": [
+        "Send a payment and simulate a timeout.",
+        "Search GET /api/v1/transaction/transactions or GET payments/{uniqueReference} by orderId before any retry.",
+        "Retry only if no transaction exists."
+      ],
+      "expected": "No duplicate transaction is created.",
+      "expectedStatus": 200,
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/v1/transaction/transactions",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "orderId",
+        "uniqueReference",
+        "X-Request-Id"
+      ],
+      "pitfalls": "Do not assume Payroc's Idempotency-Key header applies to Worldnet."
+    },
+    {
+      "id": "WN-11",
+      "title": "Worldnet: validation and error handling",
+      "tier": "recommended",
+      "kind": "negative",
+      "platform": "worldnet",
+      "appliesWhen": [],
+      "objective": "Worldnet verifies error contract for malformed and business-rule failures.",
+      "steps": [
+        "Send malformed JSON (expect 400).",
+        "Send a business-rule violation (expect 422).",
+        "Record debugIdentifier / X-Request-Id."
+      ],
+      "expected": "Error body with debugIdentifier and details[].",
+      "expectedStatus": 400,
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/transaction/payments",
+          "tagField": "order.orderId"
+        }
+      ],
+      "testData": null,
+      "evidence": [
+        "HTTP status",
+        "debugIdentifier",
+        "X-Request-Id"
+      ]
+    }
+  ]
+}
