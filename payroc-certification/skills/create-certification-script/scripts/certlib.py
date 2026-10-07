@@ -324,7 +324,8 @@ def render_md(catalog, state):
     fus = state["tailor"].get("followUps") or []
     L += ["- SD [Needs follow-up] " + f["text"] for f in fus] or ["None."]
     L += ["", "<!-- cert:section=signoff -->", "## Sign-off", "", "- certified_date: ", "- payroc_representative_name: ",
-          "- payroc_representative_signed_at: ", "- partner_representative_name: ", "- partner_representative_signed_at: ", ""]
+          "- payroc_representative_title: ", "- payroc_representative_signed_at: ", "- partner_representative_name: ",
+          "- partner_representative_title: ", "- partner_representative_signed_at: ", ""]
     return "\n".join(L)
 
 

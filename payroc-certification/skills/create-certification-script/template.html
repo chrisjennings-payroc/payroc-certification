@@ -545,9 +545,9 @@ function signedDay(iso) { var d = new Date(iso); return d.getFullYear() + '-' + 
 function certifiedDate() { var so = STATE.meta.signoff || {}; if (!so.payrocSig || !so.partnerSig) return ''; return signedDay(new Date(Math.max(new Date(so.payrocAt), new Date(so.partnerAt))).toISOString()); }
 function sigCard(who, title) {
   var so = STATE.meta.signoff || {}, sig = so[who + 'Sig'], at = so[who + 'At'], name = so[who + 'Name'] || '';
-  var h = '<div class="sig-card" data-who="' + who + '"><h3>' + title + '</h3><div class="field"><label>Name</label><input data-bind="meta.signoff.' + who + 'Name" value="' + esc(name) + '"></div><label class="sig-label">Signature</label>';
+  var h = '<div class="sig-card" data-who="' + who + '"><h3>' + title + '</h3><div class="field"><label>Name</label><input data-bind="meta.signoff.' + who + 'Name" value="' + esc(name) + '"></div><div class="field" style="margin-top:8px"><label>Title</label><input data-bind="meta.signoff.' + who + 'Title" value="' + esc(so[who + 'Title'] || '') + '"></div><label class="sig-label">Signature</label>';
   var mode = so[who + 'Mode'] || 'type';
-  if (sig) h += '<div class="sig-signed"><img alt="Signature" src="' + esc(sig) + '"><div class="small-note">Signed by ' + esc(name || 'name not entered') + ' on ' + esc(new Date(at).toLocaleString()) + '</div><button class="btn secondary small" data-action="sig-clear">Clear signature</button></div>';
+  if (sig) h += '<div class="sig-signed"><img alt="Signature" src="' + esc(sig) + '"><div class="small-note">Signed by ' + esc(name || 'name not entered') + (so[who + 'Title'] ? ', ' + esc(so[who + 'Title']) : '') + ' on ' + esc(new Date(at).toLocaleString()) + '</div><button class="btn secondary small" data-action="sig-clear">Clear signature</button></div>';
   else {
     h += '<div class="sig-tabs"><button class="' + (mode === 'type' ? 'on' : '') + '" data-action="sig-mode" data-mode="type">Type</button><button class="' + (mode === 'draw' ? 'on' : '') + '" data-action="sig-mode" data-mode="draw">Draw</button></div>';
     if (mode === 'type') h += '<div class="sig-preview" data-sig-preview>' + esc(name) + '</div><div class="small-note">Your typed name is converted to a signature.</div>';
@@ -709,8 +709,8 @@ function certToMarkdown() {
   L.push('', '<!-- cert:section=signoff -->', '## Sign-off', '');
   var so = m.signoff || {};
   L.push('- certified_date: ' + certifiedDate());
-  L.push('- payroc_representative_name: ' + (so.payrocName || '')); L.push('- payroc_representative_signed_at: ' + (so.payrocSig ? so.payrocAt : ''));
-  L.push('- partner_representative_name: ' + (so.partnerName || '')); L.push('- partner_representative_signed_at: ' + (so.partnerSig ? so.partnerAt : ''), '');
+  L.push('- payroc_representative_name: ' + (so.payrocName || '')); L.push('- payroc_representative_title: ' + (so.payrocTitle || '')); L.push('- payroc_representative_signed_at: ' + (so.payrocSig ? so.payrocAt : ''));
+  L.push('- partner_representative_name: ' + (so.partnerName || '')); L.push('- partner_representative_title: ' + (so.partnerTitle || '')); L.push('- partner_representative_signed_at: ' + (so.partnerSig ? so.partnerAt : ''), '');
   return L.join('\n');
 }
 function unq(v) { v = (v || '').trim(); if (v[0] === '"') { try { return JSON.parse(v); } catch (e) { } } return v; }
@@ -804,7 +804,7 @@ function buildPdf() {
   need(200); y += 10; para('Sign-off', 13, true, [0, 29, 78]);
   para('Certified date: ' + (certifiedDate() || '-'), 9);
   [['payroc', 'Payroc representative'], ['partner', (m.partner || 'Partner') + ' representative']].forEach(function (pr) {
-    need(110); para(pr[1] + ': ' + (so[pr[0] + 'Name'] || '-') + (so[pr[0] + 'Sig'] ? '   (signed ' + new Date(so[pr[0] + 'At']).toLocaleString() + ')' : '   (not signed)'), 9, true);
+    need(110); para(pr[1] + ': ' + (so[pr[0] + 'Name'] || '-') + (so[pr[0] + 'Title'] ? ', ' + so[pr[0] + 'Title'] : '') + (so[pr[0] + 'Sig'] ? '   (signed ' + new Date(so[pr[0] + 'At']).toLocaleString() + ')' : '   (not signed)'), 9, true);
     if (so[pr[0] + 'Sig']) { try { doc.addImage(so[pr[0] + 'Sig'], 'PNG', M, y, 200, 57); } catch (e) { } y += 64; } else y += 6;
   });
   footer();
