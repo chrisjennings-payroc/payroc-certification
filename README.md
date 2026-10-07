@@ -5,7 +5,7 @@ the companion to the [Payroc Solution Design toolkit](https://github.com/chrisje
 Payroc, the certification script is tailored from the SD `.md` to test exactly that.
 
 Covers every Payroc API workflow (boarding, hosted fields, HPP, payment links, Cloud card-present, direct API, wallets, recurring/tokens, verification,
-equipment, gateway, funding, reporting/events), cross-cutting auth/errors/security/go-live, plus the **Worldnet direct API and Worldnet hosted pages**.
+equipment, funding, reporting/events), cross-cutting auth/errors/security, plus the **Worldnet direct API and Worldnet hosted pages**.
 Worldnet GoChip SDK and eComm plugins are out of scope.
 
 ## Try it locally (no marketplace needed)
@@ -30,8 +30,8 @@ Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURIT
 | `/payroc-certification:cert-import <script.html> <sd.md>` | Re-tailor after the SD changed (done in-browser, keeps results) |
 | `/payroc-certification:cert-review <script.html>` | Consistency, blockers without reasons, missing evidence, secrets scan, Splunk tag list |
 
-Without Claude (partners, or anyone): open the generated `.html` in Chrome/Edge. In Payroc reviewer view (selector at the top right), **Import Solution Design** tailors the script in the browser; it is hidden from partners; **Autosave .html / .md / .pdf**
-write all three files as you work. Hand the `.md` to any AI assistant to help fill in evidence, then **Import results** to bring it back.
+Without Claude (partners, or anyone): open the generated `.html` in Chrome/Edge. In Payroc reviewer view (selector at the top right), **Import Solution Design** tailors the script in the browser; it is hidden from partners; **Autosave .html / .md**
+write both files as you work (PDF via Download copies). Hand the `.md` to any AI assistant to help fill in evidence, then **Import results** to bring it back.
 
 ## Known pending items
 Generated scripts carry a "Draft - pending confirmation" banner until these are resolved (see [docs/OPEN-QUESTIONS.md](docs/OPEN-QUESTIONS.md)): the **Splunk Test Tag field** is not yet confirmed, and **UAT triggers are limited** (affected scenarios show "Trigger TBC").

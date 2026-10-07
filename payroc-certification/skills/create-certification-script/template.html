@@ -205,8 +205,8 @@ try { STATE = JSON.parse($('#cert-state').textContent) || {}; } catch (e) { STAT
 
 var STATUSES = [['not_run', 'Not run'], ['pass', 'Pass'], ['fail', 'Fail'], ['blocked', 'Blocked'], ['follow_up', 'Needs follow-up'], ['na', 'N/A']];
 var STATUS_LABEL = {}; STATUSES.forEach(function (s) { STATUS_LABEL[s[0]] = s[1]; });
-var SD_SECTIONS = ['boarding', 'equipment', 'gateway', 'hosted-fields', 'hpp', 'payment-links', 'cloud', 'direct-api', 'wallets', 'recurring', 'verification', 'funding', 'reporting'];
-var ALWAYS = ['auth', 'errors', 'security', 'golive'];
+var SD_SECTIONS = ['boarding', 'equipment', 'hosted-fields', 'hpp', 'payment-links', 'cloud', 'direct-api', 'wallets', 'recurring', 'verification', 'funding', 'reporting'];
+var ALWAYS = ['auth', 'errors', 'security'];
 
 // <tailor>
 // ===== SD tailoring (mirrors scripts/parse-sd.py + build-cert.py; keep both in sync, see tests) =====
@@ -512,9 +512,9 @@ function render() {
   app.push('<div class="restore-banner" id="restore-banner"><span>A newer draft of this script is cached in this browser.</span><span><button class="btn small" id="restore-btn">Restore it</button> <button class="btn secondary small" id="dismiss-restore">Dismiss</button></span></div>');
   app.push('<div class="tool-grid">' +
     '<div class="tool-card"><h3>Save</h3><div class="autosave-status"><span class="autosave-dot" id="as-dot"></span><span id="as-text">Autosave is off</span></div>' +
-    '<div class="bar-actions"><button class="btn" id="en-html" style="display:none">Autosave .html</button><button class="btn secondary" id="en-md" style="display:none">Autosave .md</button><button class="btn secondary" id="en-pdf" style="display:none">Autosave .pdf</button><button class="btn secondary" id="dl-all">Download copies</button></div>' +
+    '<div class="bar-actions"><button class="btn" id="en-html" style="display:none">Autosave .html</button><button class="btn secondary" id="en-md" style="display:none">Autosave .md</button><button class="btn secondary" id="dl-all">Download copies</button></div>' +
     '<div class="small-note" id="as-detail" style="margin-top:8px"></div>' +
-    '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and .pdf.</div></div>' +
+    '<div class="fallback" id="fallback">This browser cannot write files directly. Edits are cached locally; use &ldquo;Download copies&rdquo; to save the .html, .md and a PDF.</div></div>' +
     '<div class="tool-card"><h3>Import results</h3><div>Bring in results filled in elsewhere (an AI assistant, a test harness or a spreadsheet).</div>' +
     '<div class="bar-actions"><button class="btn secondary" id="imp-res">Import results</button><button class="btn secondary small" id="dl-csv">CSV template</button></div><div class="small-note" style="margin-top:6px">Accepts .md, .json or .csv, matched by scenario id or Test Tag.</div></div>' +
     '<div class="tool-card reviewer-card reviewer-only" style="grid-column:1 / -1"><h3>Payroc setup (internal)</h3><div>Re-tailor this script to a Solution Design. Recorded results are kept.</div><div class="bar-actions"><button class="btn secondary" id="imp-sd">Import Solution Design (.md)</button></div></div>' +
@@ -748,12 +748,11 @@ function buildPdf() {
   return doc;
 }
 
-// ===== Autosave (.html + .md + .pdf) =====
+// ===== Autosave (.html + .md; PDF is download-only) =====
 var autosave = (function () {
   var LS_KEY = 'payroc-cert-autosave:' + (location.pathname || document.title);
-  var handles = { html: null, md: null, pdf: null }, timers = {}, DEB = { html: 1200, md: 1200, pdf: 6000 };
-  var names = { html: 'text/html', md: 'text/markdown', pdf: 'application/pdf' };
-  function base() { return (STATE.meta && STATE.meta.partner ? STATE.meta.partner.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'Partner') + '-Certification-Script'; }
+  var handles = { html: null, md: null }, timers = {}, DEB = { html: 1200, md: 1200 };
+    function base() { return (STATE.meta && STATE.meta.partner ? STATE.meta.partner.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'Partner') + '-Certification-Script'; }
   function serialize() {
     var clone = document.documentElement.cloneNode(true);
     ['#app', '#toc', '#mast-meta'].forEach(function (s) { var n = clone.querySelector(s); if (n) n.innerHTML = ''; });
@@ -766,13 +765,13 @@ var autosave = (function () {
   function setStatus(state, text) { var d = $('#as-dot'), s = $('#as-text'); if (d) d.className = 'autosave-dot' + (state ? ' ' + state : ''); if (s) s.textContent = text; }
   function detail() {
     var el = $('#as-detail'); if (!el) return;
-    el.textContent = ['html', 'md', 'pdf'].map(function (k) { return '.' + k + ': ' + (handles[k] ? 'on' : 'off'); }).join('   ');
+    el.textContent = ['html', 'md'].map(function (k) { return '.' + k + ': ' + (handles[k] ? 'on' : 'off'); }).join('   ');
   }
   async function write(kind) {
     var h = handles[kind]; if (!h) return;
     var data;
     try {
-      if (kind === 'html') data = serialize(); else if (kind === 'md') data = certToMarkdown(); else { var d = buildPdf(); if (!d) throw new Error('PDF library missing'); data = d.output('arraybuffer'); }
+      data = kind === 'html' ? serialize() : certToMarkdown();
       var w = await h.createWritable(); await w.write(data); await w.close();
       setStatus('on', 'Saved ' + new Date().toLocaleTimeString() + ' (' + Object.keys(handles).filter(function (k) { return handles[k]; }).join(', ') + ')');
     } catch (e) { handles[kind] = null; setStatus('error', '.' + kind + ' autosave failed - re-enable it'); detail(); }
@@ -780,19 +779,19 @@ var autosave = (function () {
   function cache() { try { localStorage.setItem(LS_KEY, serialize()); if (!handles.html) setStatus('cached', 'Saved in this browser - enable file autosave or download a copy'); } catch (e) { setStatus('error', 'Could not cache changes locally'); } }
   function schedule() {
     cache();
-    ['html', 'md', 'pdf'].forEach(function (k) { if (handles[k]) { clearTimeout(timers[k]); timers[k] = setTimeout(function () { write(k); }, DEB[k]); } });
+    ['html', 'md'].forEach(function (k) { if (handles[k]) { clearTimeout(timers[k]); timers[k] = setTimeout(function () { write(k); }, DEB[k]); } });
   }
   function download(name, data, type) { var b = new Blob([data], { type: type }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 1000); }
   async function enable(kind) {
     try {
-      var types = { html: { description: 'HTML file', accept: { 'text/html': ['.html'] } }, md: { description: 'Markdown file', accept: { 'text/markdown': ['.md'] } }, pdf: { description: 'PDF file', accept: { 'application/pdf': ['.pdf'] } } };
+      var types = { html: { description: 'HTML file', accept: { 'text/html': ['.html'] } }, md: { description: 'Markdown file', accept: { 'text/markdown': ['.md'] } } };
       handles[kind] = await window.showSaveFilePicker({ suggestedName: base() + '.' + kind, types: [types[kind]] });
       detail(); await write(kind);
     } catch (e) { /* cancelled */ }
   }
   function rebind() {
     var canFs = 'showSaveFilePicker' in window;
-    ['html', 'md', 'pdf'].forEach(function (k) { var b = $('#en-' + k); if (!b) return; if (canFs) { b.style.display = 'inline-block'; b.onclick = function () { if (k === 'pdf' && !(window.jspdf && window.jspdf.jsPDF)) { toast('PDF library not bundled in this file'); return; } enable(k); }; } });
+    ['html', 'md'].forEach(function (k) { var b = $('#en-' + k); if (!b) return; if (canFs) { b.style.display = 'inline-block'; b.onclick = function () { enable(k); }; } });
     if (!canFs) { var f = $('#fallback'); if (f) f.classList.add('show'); setStatus('cached', 'Edits cached in this browser'); }
     var dl = $('#dl-all');
     if (dl) dl.onclick = function () {

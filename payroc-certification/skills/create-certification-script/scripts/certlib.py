@@ -17,20 +17,20 @@ VENDOR_JSPDF = os.path.join(SKILL_DIR, "vendor", "jspdf.umd.min.js")
 VERSION = "0.1.0"
 
 # Order sections appear in the script.
-ORDER = ["auth", "errors", "boarding", "equipment", "gateway", "direct-api", "hosted-fields", "hpp",
+ORDER = ["auth", "errors", "boarding", "equipment", "direct-api", "hosted-fields", "hpp",
          "payment-links", "cloud", "wallets", "recurring", "verification", "funding", "reporting",
-         "security", "golive"]
+         "security"]
 # Display groups (script reads top to bottom: foundation -> setup -> take payments -> stored methods -> money -> close-out)
 GROUPS = {
     "auth": "Foundation", "errors": "Foundation",
-    "boarding": "Onboarding & setup", "equipment": "Onboarding & setup", "gateway": "Onboarding & setup",
+    "boarding": "Onboarding & setup", "equipment": "Onboarding & setup",
     "direct-api": "Accepting payments", "hosted-fields": "Accepting payments", "hpp": "Accepting payments",
     "payment-links": "Accepting payments", "cloud": "Accepting payments", "wallets": "Accepting payments",
     "recurring": "Stored payment methods & checks", "verification": "Stored payment methods & checks",
     "funding": "Funding & reporting", "reporting": "Funding & reporting",
-    "security": "Security & go-live", "golive": "Security & go-live",
+    "security": "Security",
 }
-ALWAYS = ["auth", "errors", "security", "golive"]
+ALWAYS = ["auth", "errors", "security"]
 STATUSES = ["not_run", "pass", "fail", "blocked", "follow_up", "na"]
 
 

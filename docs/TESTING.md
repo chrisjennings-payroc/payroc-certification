@@ -9,7 +9,7 @@ python3 scripts/review-cert.py /tmp/cert/Acme-Coffee-Software-Certification-Scri
 
 Manual browser checks (Chrome/Edge): open the built `.html`; change a scenario to Blocked (reason required) and confirm it appears in
 Blockers & follow-ups; paste a sample response and confirm fields extract and card numbers are masked; switch to Payroc reviewer view (View selector, top right) and use Import Solution Design with a different fixture
-and confirm the scope changes while recorded results stay; enable Autosave .html/.md/.pdf and confirm all three files update; switch to Payroc reviewer view and use the log lookup panel.
+and confirm the scope changes while recorded results stay; enable Autosave .html and .md and confirm both files update; use Download copies to check the PDF; switch to Payroc reviewer view and use the log lookup panel.
 
 ## Testing against real Solution Designs
 Real SDs contain partner data and are not committed. Export each SD's `.md` twin into a local folder and run:

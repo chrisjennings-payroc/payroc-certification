@@ -9,8 +9,7 @@ Collected from each scenario file's `openQuestions`. Resolve with the Payroc API
 
 Both flags are defined in `scripts/certlib.py` (`FLAGS`); remove an entry there once resolved and the banner disappears from newly built scripts.
 
-**Context:** which request field is indexed in Splunk (drives `tagField` for every endpoint) and the 24-character limit on Apple Pay / Worldnet order ids (Test Tag budget).
-
+**Context:** Collected from each scenario file's `openQuestions`.
 
 ## Authentication
 
@@ -60,18 +59,6 @@ Both flags are defined in `scripts/certlib.py` (`FLAGS`); remove an entry there 
 
 - FND-07: How to hold a UAT instruction past accepted not documented
 - FND-01: UAT KYC simulation requires Payroc enablement
-
-## Gateway configuration
-
-- Worldnet self-care configuration not documented in sourced skills; no Worldnet scenarios authored
-- Gateway_Payroc template name taken from legacy guide; confirm against skill enum
-- Gateway-level settings beyond solutionSetup unknown
-
-## Go-live cutover checklist
-
-- GL-08: Payroc policy on production penny/first live transaction unknown
-- GL prefix not in authoring guide prefix list; confirm
-- Production approval/sign-off process unknown
 
 ## 8.2b Hosted Fields
 

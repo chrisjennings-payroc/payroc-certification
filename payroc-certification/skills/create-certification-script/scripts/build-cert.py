@@ -54,7 +54,7 @@ def main():
         print("FOLLOW-UP: " + f["text"])
     for n in t["notes"]:
         print("NOTE: " + n)
-    print("Next: open the .html in Chrome/Edge, click 'Autosave .html', '.md' and '.pdf', then share the files with the partner.")
+    print("Next: open the .html in Chrome/Edge, click 'Autosave .html' and '.md', then share the files with the partner.")
     return 0
 
 
