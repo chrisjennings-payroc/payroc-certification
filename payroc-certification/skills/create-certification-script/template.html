@@ -323,7 +323,6 @@ function tagWarn(id) {
   var sc = scenarioById(id); if (sc && byIdem(sc)) return '';
   var pn = STATE.meta.projectNumber;
   if (!pn) return 'Enter the Integration Project Number in the header';
-  if (!/^INTG-\d+$/.test(pn)) return 'Project number should look like INTG-12345';
   var n = tagOf(id).length; return n > 24 ? 'Tag is ' + n + ' characters (max 24)' : '';
 }
 
@@ -331,7 +330,7 @@ function initState() {
   if (!STATE.meta) STATE.meta = {};
   var m = STATE.meta;
   ['partner', 'contact', 'se', 'reviewDate', 'sdFile', 'sdVersion', 'env', 'projectNumber', 'splunkTemplate'].forEach(function (k) { if (m[k] == null) m[k] = ''; });
-  if (!m.env) m.env = 'UAT';
+  m.env = 'UAT';
   if (!m.splunkTemplate) m.splunkTemplate = 'index=<INDEX> "{tag}"';
   if (!m.mode) m.mode = 'partner';
   if (!m.projectNumber && m.certRunId) m.projectNumber = m.certRunId; // earlier drafts
@@ -410,9 +409,8 @@ function renderMasthead() {
   function f(label, path, ph, type) { return '<div><div class="meta-label">' + label + '</div><input class="meta-input" data-bind="meta.' + path + '" type="' + (type || 'text') + '" placeholder="' + esc(ph || '') + '" value="' + esc(getPath(STATE, 'meta.' + path)) + '"></div>'; }
   $('#mast-meta').innerHTML =
     f('Partner / ISV', 'partner', 'Partner name') + f('Partner contact', 'contact', 'Name, email') + f('Payroc SE', 'se', 'Sales engineer') + f('Review date', 'reviewDate', '', 'date') +
-    f('Integration Project Number', 'projectNumber', 'INTG-12345') + '<div><div class="meta-label">Environment</div><select class="meta-input" data-bind="meta.env"><option>UAT</option><option>Production</option></select></div>' +
+    f('Integration Project Number', 'projectNumber', 'e.g. INTG-12345') + '<div><div class="meta-label">Environment</div><input class="meta-input" value="UAT" readonly></div>' +
     f('Solution Design file', 'sdFile', 'Imported SD file') + f('SD template version', 'sdVersion', '');
-  $('#mast-meta select').value = m.env || 'UAT';
   $('#title-partner').textContent = m.partner || 'Partner';
   document.title = (m.partner ? m.partner + ' - ' : '') + 'Certification Script | Payroc';
 }
@@ -429,9 +427,8 @@ function renderToc(groups) {
   $('#toc').innerHTML = h;
 }
 
-var HOSTMAP = [['api.uat.payroc.com', 'api.payroc.com'], ['identity.uat.payroc.com', 'identity.payroc.com'], ['payments.uat.payroc.com', 'payments.payroc.com'], ['cdn.uat.payroc.com', 'cdn.payroc.com'], ['testpayments.worldnettps.com', 'payments.worldnettps.com']];
-function envText(t) { t = String(t == null ? '' : t); if (STATE.meta.env !== 'Production') return t; HOSTMAP.forEach(function (m) { t = t.split(m[0]).join(m[1]); }); return t; }
-function apiBase() { return STATE.meta.env === 'Production' ? 'https://api.payroc.com' : 'https://api.uat.payroc.com'; }
+function envText(t) { return String(t == null ? '' : t); }
+function apiBase() { return 'https://api.uat.payroc.com'; }
 function byIdem(sc) { return sc.identifyBy === 'idempotency_key'; }
 function lookupOf(sc) { return byIdem(sc) ? (res(sc.id).idem || '') : tagOf(sc.id); }
 function endpointHtml(sc) {
@@ -550,7 +547,6 @@ function render() {
     '<div class="bar-actions"><button class="btn secondary" id="imp-res">Import results</button><button class="btn secondary small" id="dl-csv">CSV template</button></div><div class="small-note" style="margin-top:6px">Accepts .md, .json or .csv, matched by scenario id or Test Tag.</div></div>' +
     '<div class="tool-card reviewer-card reviewer-only" style="grid-column:1 / -1"><h3>Payroc setup (internal)</h3><div>Re-tailor this script to a Solution Design. Recorded results are kept.</div><div class="bar-actions"><button class="btn secondary" id="imp-sd">Import Solution Design (.md)</button></div></div>' +
     '</div><input type="file" id="file-sd" accept=".md,text/markdown,text/plain" hidden><input type="file" id="file-res" accept=".md,.json,.csv,text/*" hidden>');
-  if (STATE.meta.env === 'Production') app.push('<div class="callout warn"><strong>Production endpoints shown.</strong> Certification tests are designed for UAT. Run something in Production only if Payroc has asked you to, and never use test cards or trigger values there.</div>');
   if ((CATALOG.flags || []).length) app.push('<div class="callout warn"><strong>Draft - pending confirmation with Payroc</strong><ol>' + CATALOG.flags.map(function (f) { return '<li>' + esc(f.text) + '</li>'; }).join('') + '</ol></div>');
   app.push('<div class="callout instructions"><strong>How to record a test</strong><ol><li>Open a scenario, copy its <b>Test Tag</b> and send it in the field shown under Endpoints (so Payroc can find your call in the logs).</li><li>Run the call in <b>UAT</b> and paste the response into &ldquo;Paste a response&rdquo;, or fill the evidence fields.</li><li>Set the result: Pass, Fail, <b>Blocked</b> or <b>Needs follow-up</b> (add a reason). Anything blocked appears in the Blockers table for Payroc.</li><li>Keep autosave on and send the saved files back to your Payroc contact. Never paste real card numbers or secrets.</li></ol></div>');
   var tn = STATE.tailor.notes || [];
@@ -906,8 +902,6 @@ document.addEventListener('change', function (ev) {
   if (t.matches('[data-owner]')) { res(t.getAttribute('data-owner')).owner = t.value; autosave.schedule(); return; }
   if (t.matches('[data-target]')) { res(t.getAttribute('data-target')).target = t.value; autosave.schedule(); return; }
   if (t.matches('[data-mstatus]')) { STATE.manual[+t.getAttribute('data-mstatus')].status = t.value; autosave.schedule(); return; }
-  if (t.matches('[data-bind="meta.env"]')) { STATE.meta.env = t.value; render(); autosave.schedule(); return; }
-  if (t.matches('[data-bind="meta.projectNumber"]') && /^\d+$/.test(t.value.trim())) { t.value = 'INTG-' + t.value.trim(); STATE.meta.projectNumber = t.value; $$('.scn').forEach(refreshRequest); renderSplunk(); autosave.schedule(); return; }
 });
 document.addEventListener('input', function (ev) {
   var t = ev.target, card = cardOf(t);
