@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payroc ISV Certification Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:   #001D4E;
+    --blue:   #0051C2;
+    --mid:    #0043A3;
+    --teal:   #00E0B8;
+    --green:  #00A888;
+    --gray:   #BFBFBF;
+    --light:  #F4F6FA;
+    --border: #DDE3EF;
+    --text:   #0F1A2E;
+    --muted:  #64748B;
+    --pass:   #00A888;
+    --fail:   #DC2626;
+    --warn:   #D97706;
+  }
+
+  body {
+    font-family: 'Geist', system-ui, -apple-system, sans-serif;
+    background: #F0F4FB;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 32px 48px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    position: relative;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--teal) 0%, var(--blue) 100%);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--teal);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 800;
+    color: var(--navy);
+    flex-shrink: 0;
+    letter-spacing: -1px;
+  }
+  .logo-text {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .header-meta { flex: 1; }
+  .header-meta h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .header-meta p { font-size: 13px; color: var(--gray); }
+  .header-fields { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  .header-field { display: flex; flex-direction: column; gap: 4px; min-width: 180px; }
+  .header-field label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--teal); font-weight: 600; }
+  .header-field input {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 6px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 6px 10px;
+    outline: none;
+    width: 200px;
+  }
+  .header-field input::placeholder { color: rgba(255,255,255,.35); }
+  .header-field input:focus { border-color: var(--teal); background: rgba(255,255,255,.12); }
+
+  /* ── Status badge ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-top: 12px;
+  }
+  .status-badge.not-started { background: rgba(255,255,255,.1); color: var(--gray); }
+  .status-badge.in-progress { background: rgba(0,224,184,.15); color: var(--teal); }
+  .status-badge.certified   { background: rgba(0,168,136,.2);  color: var(--green); }
+
+  /* ── Layout ── */
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 130px; }
+
+  .section {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { background: #EBF0FA; }
+  .section-number {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-number.alt { background: var(--navy); }
+  .section-title { font-size: 15px; font-weight: 700; flex: 1; }
+  .section-subtitle { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .section-progress { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .chevron { font-size: 12px; color: var(--muted); transition: transform .2s; }
+  .section.collapsed .chevron { transform: rotate(-90deg); }
+  .section-body { padding: 20px; }
+  .section.collapsed .section-body { display: none; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #FAFBFD;
+    transition: border-color .15s, background .15s;
+  }
+  .check-item:has(.check-cb:checked) {
+    border-color: var(--green);
+    background: #F0FBF8;
+  }
+  .check-cb {
+    width: 18px; height: 18px;
+    accent-color: var(--green);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+  }
+  .check-content { flex: 1; min-width: 0; }
+  .check-label { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 2px; }
+  .check-desc { font-size: 12px; color: var(--muted); }
+  .check-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-post { background: #DBEAFE; color: #1D4ED8; }
+  .badge-get  { background: #D1FAE5; color: #065F46; }
+
+  /* ── Endpoint blocks ── */
+  .endpoint-block {
+    margin: 16px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .endpoint-title {
+    background: var(--light);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .method {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: .3px;
+  }
+  .method.post { background: #DBEAFE; color: #1D4ED8; }
+  .method.get  { background: #D1FAE5; color: #065F46; }
+  .endpoint-path {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: var(--navy);
+    flex: 1;
+  }
+  .code-block {
+    background: #0F1A2E;
+    color: #E2E8F0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    overflow-x: auto;
+  }
+  .code-block .key   { color: #7DD3FC; }
+  .code-block .str   { color: #86EFAC; }
+  .code-block .num   { color: #FCA5A5; }
+  .code-block .bool  { color: #C4B5FD; }
+  .code-block .cmt   { color: #64748B; }
+
+  /* ── Notes field ── */
+  .notes-area {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 10px 12px;
+    color: var(--text);
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    background: #FAFBFD;
+  }
+  .notes-area:focus { border-color: var(--blue); background: #fff; }
+  .notes-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; display: block; }
+
+  /* ── Info boxes ── */
+  .info-box {
+    border-left: 3px solid var(--blue);
+    background: #EFF6FF;
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    color: #1E3A5F;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  .info-box.teal { border-color: var(--teal); background: #F0FDFB; color: #064E3B; }
+  .info-box.warn { border-color: var(--warn); background: #FFFBEB; color: #78350F; }
+
+  /* ── Divider ── */
+  .section-divider {
+    margin: 20px 0;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Two-col grid ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ── Autosave bar ── */
+  #autosave-bar {
+    position: fixed;
+    bottom: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(960px, calc(100% - 48px));
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.10);
+    z-index: 90;
+  }
+  #autosave-status { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--text); }
+  .as-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .as-dot-off    { background: var(--gray); }
+  .as-dot-active { background: var(--green); }
+  .as-dot-saving { background: var(--warn); }
+  #autosave-btn {
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #autosave-btn:hover { background: var(--mid); }
+  #autosave-btn:disabled { background: var(--gray); cursor: default; }
+
+  /* ── Summary bar ── */
+  #summary-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--navy);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    font-size: 13px;
+    z-index: 100;
+    border-top: 2px solid var(--teal);
+  }
+  #summary-bar .bar-group { display: flex; align-items: center; gap: 16px; }
+  .bar-stat { display: flex; align-items: center; gap: 6px; }
+  .bar-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-complete { background: var(--green); }
+  .dot-total    { background: var(--gray); }
+  #cert-status-btn {
+    background: var(--teal);
+    color: var(--navy);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #cert-status-btn:hover { background: #00C9A5; }
+
+  /* ── Auto-save toast ── */
+  #save-toast {
+    position: fixed;
+    top: 16px; right: 16px;
+    background: var(--navy);
+    color: var(--teal);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  #save-toast.show { opacity: 1; }
+
+  /* ── Scope table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--light); color: var(--navy); font-weight: 700; padding: 8px 12px; text-align: left; border-bottom: 2px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #FAFBFD; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-meta">
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <span class="logo-text">Payroc</span>
+    </div>
+    <h1>ISV Integration Certification Guide</h1>
+    <p>Standard boarding integration — POST/GET only · Direct-link signature · Pricing intents provided by Payroc</p>
+    <div class="header-fields">
+      <div class="header-field">
+        <label>ISV / Partner Name</label>
+        <input type="text" id="hdr_partner" placeholder="Acme POS, Inc.">
+      </div>
+      <div class="header-field">
+        <label>Primary Contact</label>
+        <input type="text" id="hdr_contact" placeholder="Dev lead name">
+      </div>
+      <div class="header-field">
+        <label>Review Date</label>
+        <input type="date" id="hdr_date">
+      </div>
+      <div class="header-field">
+        <label>Payroc SE</label>
+        <input type="text" id="hdr_se" placeholder="Solutions engineer">
+      </div>
+    </div>
+    <div id="cert-status-badge" class="status-badge not-started">● Not Started</div>
+  </div>
+</header>
+
+<div id="save-toast" class="">Saved ✓</div>
+
+<div class="container">
+
+  <!-- ── 0: Scope overview ── -->
+  <div class="section" id="sec-scope">
+    <div class="section-header" onclick="toggleSection('sec-scope')">
+      <div class="section-number alt">i</div>
+      <div class="section-title">Integration Scope <span class="section-subtitle">— what this certification covers</span></div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <table>
+        <thead>
+          <tr><th>Area</th><th>Approach</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Boarding</strong></td><td><code>POST /v1/merchant-platforms</code></td><td>Single call provisions merchant + processing account</td></tr>
+          <tr><td><strong>Merchant updates</strong></td><td>Manual (Payroc-handled)</td><td>ISV does not call PATCH/PUT/DELETE — change requests go through Payroc ops</td></tr>
+          <tr><td><strong>Pricing</strong></td><td>Pricing intent ID</td><td>Payroc creates and delivers the <code>pricingIntentId</code>; ISV embeds it at boarding time</td></tr>
+          <tr><td><strong>Signature</strong></td><td>Direct link</td><td>ISV retrieves the sign link from the boarding response and redirects the merchant to it</td></tr>
+          <tr><td><strong>Status updates</strong></td><td>Webhooks (event subscriptions)</td><td>All <code>processingAccount</code> and <code>terminalOrder</code></td></tr>
+          <tr><td><strong>Terminal / gateway</strong></td><td><code>POST /v1/processing-accounts/{id}/terminal-orders</code></td><td>Separate section — <code>Gateway_Payroc</code> template; triggered after account approval</td></tr>
+          <tr><td><strong>API methods in scope</strong></td><td>POST · GET only</td><td>No PATCH, PUT, or DELETE</td></tr>
+          <tr><td><strong>Environments</strong></td><td>UAT → Production</td><td>Certify in UAT; Payroc promotes to Production after sign-off</td></tr>
+        </tbody>
+      </table>
+      <div class="info-box teal" style="margin-top:14px">
+        <strong>Pricing intent IDs:</strong> Payroc will configure your pricing templates and share the active <code>pricingIntentId</code> values for production use. Do not embed UAT intent IDs in production code — they are environment-specific.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 1: Authentication ── -->
+  <div class="section" id="sec-auth">
+    <div class="section-header" onclick="toggleSection('sec-auth')">
+      <div class="section-number">1</div>
+      <div class="section-title">Authentication <span class="section-subtitle">— get a bearer token</span></div>
+      <span class="section-progress" id="prog-auth">0 / 2</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="info-box">
+        Tokens expire in <strong>~1 hour</strong>. Exchange your API key at the start of each session, or implement proactive refresh before expiry. The API key is your secret — never expose it to the browser.
+      </div>
+
+      <div class="endpoint-block">
+        <div class="endpoint-title">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">https://identity.uat.payroc.com/authorize</span>
+        </div>
+        <div class="code-block"><span class="cmt"># Request</span>
+<span class="key">Header:</span> <span class="str">x-api-key: YOUR_API_KEY</span>
+
+<span class="cmt"># Response</span>
+{
+  <span class="key">"access_token"</span>: <span class="str">"eyJhbGc..."</span>,
+  <span class="key">"expires_in"</span>:  <span class="num">3600</span>,
+  <span class="key">"token_type"</span>:  <span class="str">"Bearer"</span>
+}
+</div>
+      </div>
+
+      <ul class="checklist" id="cl-auth">
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="auth1" data-section="auth">
+          <div class="check-content">
+            <span class="check-label">UAT token exchange implemented</span>
+            <span class="check-desc">Successfully calling <code>POST /authorize</code> on <code>identity.uat.payroc.com</code> and receiving <code>access_token</code></span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="auth2" data-section="auth">
+          <div class="check-content">
+            <span class="check-label">Token attached to all requests</span>
+            <span class="check-desc"><code>Authorization: Bearer &lt;access_token&gt;</code> header sent on every API call</span>
+          </div>
+          <span class="check-badge badge-get">REQ</span>
+        </li>
+      </ul>
+
+      <hr class="section-divider">
+      <label class="notes-label">Notes</label>
+      <textarea class="notes-area" id="notes-auth" placeholder="e.g. token stored in memory, refresh strategy, API key management…"></textarea>
+    </div>
+  </div>
+
+  <!-- ── 2: Event Subscriptions ── -->
+  <div class="section" id="sec-events">
+    <div class="section-header" onclick="toggleSection('sec-events')">
+      <div class="section-number">2</div>
+      <div class="section-title">Event Subscriptions <span class="section-subtitle">— webhook registration</span></div>
+      <span class="section-progress" id="prog-events">0 / 5</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="info-box">
+        Register your webhook <strong>before</strong> submitting your first boarding request so no status change events are missed. Both event types must be subscribed — processing account and terminal order.
+      </div>
+
+      <div class="endpoint-block">
+        <div class="endpoint-title">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">https://api.uat.payroc.com/v1/event-subscriptions</span>
+        </div>
+        <div class="code-block">{
+  <span class="key">"enabled"</span>: <span class="bool">true</span>,
+  <span class="key">"eventTypes"</span>: [
+    <span class="str">"processingAccount.status.changed"</span>,
+    <span class="str">"terminalOrder.status.changed"</span>
+  ],
+  <span class="key">"notifications"</span>: [
+    {
+      <span class="key">"type"</span>:                 <span class="str">"webhook"</span>,
+      <span class="key">"uri"</span>:                  <span class="str">"https://your-server.com/webhooks/payroc"</span>,
+      <span class="key">"secret"</span>:               <span class="str">"your-shared-secret-32-chars-min"</span>,
+      <span class="key">"supportEmailAddress"</span>: <span class="str">"ops@yourcompany.com"</span>
+    }
+  ]
+}
+</div>
+      </div>
+
+      <div class="info-box warn">
+        <strong>UAT access note:</strong> <code>POST /v1/event-subscriptions</code> requires an event-scoped API key. If you receive a 403, contact your Payroc integration contact to enable event access on your key.
+      </div>
+
+      <ul class="checklist" id="cl-events">
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="ev1" data-section="events">
+          <div class="check-content">
+            <span class="check-label">Webhook endpoint publicly reachable</span>
+            <span class="check-desc">Your endpoint returns HTTP 200 on receipt; Payroc retries up to 5× on failure</span>
+          </div>
+          <span class="check-badge badge-get">INFRA</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="ev2" data-section="events">
+          <div class="check-content">
+            <span class="check-label">Subscription created with all event types</span>
+            <span class="check-desc">Single subscription covering <code>processingAccount</code> and <code>terminalOrder</code></span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="ev3" data-section="events">
+          <div class="check-content">
+            <span class="check-label"><code>processingAccount.status.changed</code> received and handled</span>
+            <span class="check-desc">Correctly updating merchant status in your system on <code>approved</code>, <code>declined</code>, <code>suspended</code> etc.</span>
+          </div>
+          <span class="check-badge badge-get">WBHK</span>
+        </li>
+    <li class="check-item">
+          <input type="checkbox" class="check-cb" id="ev3" data-section="events">
+          <div class="check-content">
+            <span class="check-label"><code>processingAccount.signature.signed</code> received and handled</span>
+            <span class="check-desc">Correctly updating merchant status in your system on <code>approved</code>, <code>declined</code>, <code>suspended</code> etc.</span>
+          </div>
+          <span class="check-badge badge-get">WBHK</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="ev4" data-section="events">
+          <div class="check-content">
+            <span class="check-label"><code>terminalOrder.status.changed</code> received and handled</span>
+            <span class="check-desc">Tracking order lifecycle: <code>open → dispatched → fulfilled</code> (or <code>cancelled</code> / <code>held</code>)</span>
+          </div>
+          <span class="check-badge badge-get">WBHK</span>
+        </li>
+      </ul>
+
+      <hr class="section-divider">
+      <label class="notes-label">Webhook endpoint URL</label>
+      <input type="text" class="notes-area" id="notes-webhook-url" placeholder="https://your-server.com/webhooks/payroc" style="min-height:unset;padding:8px 12px;resize:none;">
+      <label class="notes-label" style="margin-top:10px">Notes</label>
+      <textarea class="notes-area" id="notes-events" placeholder="e.g. secret storage, retry handling, idempotency on duplicate events…"></textarea>
+    </div>
+  </div>
+
+  <!-- ── 3: Board a Merchant ── -->
+  <div class="section" id="sec-boarding">
+    <div class="section-header" onclick="toggleSection('sec-boarding')">
+      <div class="section-number">3</div>
+      <div class="section-title">Board a Merchant <span class="section-subtitle">— create merchant platform</span></div>
+      <span class="section-progress" id="prog-boarding">0 / 6</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+
+      <div class="info-box">
+        A single <code>POST /v1/merchant-platforms</code> submission provisions both the <strong>merchant platform</strong> and its first <strong>processing account (MID)</strong>. Save both <code>merchantPlatformId</code> and <code>processingAccountId</code> from the response — you'll need them for terminal ordering and status lookups.
+      </div>
+
+      <div class="endpoint-block">
+        <div class="endpoint-title">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">https://api.uat.payroc.com/v1/merchant-platforms</span>
+        </div>
+        <div class="code-block">{
+  <span class="key">"business"</span>: {
+    <span class="key">"name"</span>:               <span class="str">"Acme Coffee LLC"</span>,
+    <span class="key">"taxId"</span>:              <span class="str">"123456789"</span>,           <span class="cmt">// EIN — digits only, no dashes</span>
+    <span class="key">"organizationType"</span>:  <span class="str">"limitedLiabilityCompany"</span>,
+    <span class="key">"countryOfOperation"</span>: <span class="str">"US"</span>,
+    <span class="key">"addresses"</span>: [{
+      <span class="key">"type"</span>:        <span class="str">"legalAddress"</span>,
+      <span class="key">"addressLine1"</span>: <span class="str">"123 Main St"</span>,
+      <span class="key">"city"</span>:         <span class="str">"Chicago"</span>,
+      <span class="key">"state"</span>:        <span class="str">"Illinois"</span>,
+      <span class="key">"postalCode"</span>:   <span class="str">"60601"</span>,
+      <span class="key">"country"</span>:      <span class="str">"US"</span>
+    }],
+    <span class="key">"contactMethods"</span>: [{ <span class="key">"type"</span>: <span class="str">"email"</span>, <span class="key">"value"</span>: <span class="str">"owner@acmecoffee.com"</span> }]
+  },
+  <span class="key">"processingAccounts"</span>: [{
+    <span class="key">"name"</span>:       <span class="str">"Acme Coffee"</span>,
+    <span class="key">"type"</span>:       <span class="str">"card"</span>,
+    <span class="key">"currency"</span>:   <span class="str">"USD"</span>,
+    <span class="key">"descriptor"</span>: <span class="str">"ACME COFFEE CHICAGO"</span>,
+    <span class="key">"timezone"</span>:   <span class="str">"America/Chicago"</span>,
+    <span class="key">"country"</span>:    <span class="str">"US"</span>,
+    <span class="key">"contactMethods"</span>: [{ <span class="key">"type"</span>: <span class="str">"email"</span>, <span class="key">"value"</span>: <span class="str">"owner@acmecoffee.com"</span> }],
+    <span class="key">"addresses"</span>: [{
+      <span class="key">"type"</span>: <span class="str">"doingBusinessAs"</span>, <span class="key">"addressLine1"</span>: <span class="str">"123 Main St"</span>,
+      <span class="key">"city"</span>: <span class="str">"Chicago"</span>, <span class="key">"state"</span>: <span class="str">"Illinois"</span>, <span class="key">"postalCode"</span>: <span class="str">"60601"</span>, <span class="key">"country"</span>: <span class="str">"US"</span>
+    }],
+    <span class="key">"owners"</span>: [
+      {
+        <span class="key">"firstName"</span>: <span class="str">"Jane"</span>, <span class="key">"lastName"</span>: <span class="str">"Smith"</span>, <span class="key">"dateOfBirth"</span>: <span class="str">"1980-04-15"</span>,
+        <span class="key">"relationship"</span>: { <span class="key">"isControlProng"</span>: <span class="bool">true</span>, <span class="key">"isAuthorizedSignatory"</span>: <span class="bool">false</span>, <span class="key">"ownershipPercentage"</span>: <span class="num">100</span> },
+        <span class="key">"identifiers"</span>: [{ <span class="key">"type"</span>: <span class="str">"nationalId"</span>, <span class="key">"value"</span>: <span class="str">"123456789"</span> }],  <span class="cmt">// digits only</span>
+        <span class="key">"addresses"</span>: [{ <span class="key">"type"</span>: <span class="str">"primaryResidence"</span>, <span class="key">"addressLine1"</span>: <span class="str">"456 Oak Ave"</span>, <span class="key">"city"</span>: <span class="str">"Chicago"</span>, <span class="key">"state"</span>: <span class="str">"Illinois"</span>, <span class="key">"postalCode"</span>: <span class="str">"60601"</span>, <span class="key">"country"</span>: <span class="str">"US"</span> }],
+        <span class="key">"contactMethods"</span>: [{ <span class="key">"type"</span>: <span class="str">"email"</span>, <span class="key">"value"</span>: <span class="str">"jane@acmecoffee.com"</span> }]
+      },
+      {
+        <span class="key">"firstName"</span>: <span class="str">"John"</span>, <span class="key">"lastName"</span>: <span class="str">"Smith"</span>, <span class="key">"dateOfBirth"</span>: <span class="str">"1978-11-22"</span>,
+        <span class="key">"relationship"</span>: { <span class="key">"isControlProng"</span>: <span class="bool">false</span>, <span class="key">"isAuthorizedSignatory"</span>: <span class="bool">true</span>, <span class="key">"ownershipPercentage"</span>: <span class="num">0</span> },
+        <span class="key">"identifiers"</span>: [{ <span class="key">"type"</span>: <span class="str">"nationalId"</span>, <span class="key">"value"</span>: <span class="str">"987654321"</span> }],
+        <span class="key">"addresses"</span>: [{ <span class="key">"type"</span>: <span class="str">"primaryResidence"</span>, <span class="key">"addressLine1"</span>: <span class="str">"456 Oak Ave"</span>, <span class="key">"city"</span>: <span class="str">"Chicago"</span>, <span class="key">"state"</span>: <span class="str">"Illinois"</span>, <span class="key">"postalCode"</span>: <span class="str">"60601"</span>, <span class="key">"country"</span>: <span class="str">"US"</span> }],
+        <span class="key">"contactMethods"</span>: [{ <span class="key">"type"</span>: <span class="str">"email"</span>, <span class="key">"value"</span>: <span class="str">"john@acmecoffee.com"</span> }]
+      }
+    ],
+    <span class="key">"pricing"</span>: {
+      <span class="key">"type"</span>:             <span class="str">"intent"</span>,
+      <span class="key">"pricingIntentId"</span>:  <span class="str">"PI-XXXX"</span>  <span class="cmt">// provided by Payroc — replace before go-live</span>
+    },
+    <span class="key">"signature"</span>: {
+      <span class="key">"type"</span>: <span class="str">"requestedViaDirectLink"</span>,
+      <span class="key">"link"</span>: {
+        <span class="key">"rel"</span>:    <span class="str">"sign"</span>,
+        <span class="key">"method"</span>: <span class="str">"GET"</span>,
+        <span class="key">"href"</span>:   <span class="str">"https://api.payroc.com/v1/..."</span>  <span class="cmt">// from prior HATEOAS link in response</span>
+      }
+    }
+  }]
+}
+</div>
+      </div>
+
+      <div class="info-box warn">
+        <strong>Owner rules:</strong> Control prong and authorized signatory <em>cannot</em> be the same person — you need at least two owner objects. <code>isControlProng: true</code> on exactly one; <code>isAuthorizedSignatory: true</code> on a different one. National ID values must be digits only (no dashes).
+      </div>
+
+      <hr class="section-divider">
+
+      <h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Read-back endpoints</h4>
+      <div class="two-col">
+        <div class="endpoint-block" style="margin:0">
+          <div class="endpoint-title">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/v1/merchant-platforms/{id}</span>
+          </div>
+          <div class="code-block" style="font-size:11px"><span class="cmt">// Retrieve platform + status</span></div>
+        </div>
+        <div class="endpoint-block" style="margin:0">
+          <div class="endpoint-title">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/v1/processing-accounts/{id}</span>
+          </div>
+          <div class="code-block" style="font-size:11px"><span class="cmt">// Retrieve MID details + status</span></div>
+        </div>
+      </div>
+
+      <ul class="checklist" style="margin-top:16px" id="cl-boarding">
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo1" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Boarding request builds and submits successfully</span>
+            <span class="check-desc">201 response received; <code>merchantPlatformId</code> and <code>processingAccountId</code> persisted</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo2" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Control prong / authorized signatory split correctly</span>
+            <span class="check-desc">Two distinct owners — one control prong, one authorized signatory; no owner has both flags</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo3" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Pricing intent ID embedded correctly</span>
+            <span class="check-desc"><code>pricing.type: "intent"</code> with the Payroc-provided <code>pricingIntentId</code></span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo4" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Direct-link signature flow implemented</span>
+            <span class="check-desc">Sign link retrieved from boarding response HATEOAS links; merchant redirected to complete signature</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo5" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Idempotency key generated per submission</span>
+            <span class="check-desc">UUID v4 sent in <code>Idempotency-Key</code> header; fresh key for each new boarding, same key only for byte-identical retries</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="bo6" data-section="boarding">
+          <div class="check-content">
+            <span class="check-label">Status read-back working</span>
+            <span class="check-desc"><code>GET /v1/processing-accounts/{id}</code> returns current status; used as fallback if webhook missed</span>
+          </div>
+          <span class="check-badge badge-get">GET</span>
+        </li>
+      </ul>
+
+      <hr class="section-divider">
+      <label class="notes-label">Notes</label>
+      <textarea class="notes-area" id="notes-boarding" placeholder="e.g. data mapping from your system, edge cases, required fields source…"></textarea>
+    </div>
+  </div>
+
+  <!-- ── 4: Error Handling ── -->
+  <div class="section" id="sec-errors">
+    <div class="section-header" onclick="toggleSection('sec-errors')">
+      <div class="section-number">4</div>
+      <div class="section-title">Error Handling <span class="section-subtitle">— 4xx/5xx response handling</span></div>
+      <span class="section-progress" id="prog-errors">0 / 3</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="info-box">
+        All Payroc errors follow <strong>RFC 7807</strong> problem-details format, extended with an <code>errors[]</code> array. Each item in <code>errors[]</code> carries <code>parameter</code> (the failing JSON path), <code>detail</code>, and <code>message</code>. Read <code>errors[].parameter</code> to map failures back to your request body.
+      </div>
+
+      <div class="endpoint-block">
+        <div class="endpoint-title" style="background:#1a0a0a; border-bottom-color:#3a1a1a;">
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:#FEE2E2;color:#991B1B;">400</span>
+          <span class="endpoint-path" style="color:#FCA5A5;">Validation error shape</span>
+        </div>
+        <div class="code-block">{
+  <span class="key">"type"</span>:     <span class="str">"https://docs.payroc.com/api/errors#bad-request"</span>,
+  <span class="key">"title"</span>:    <span class="str">"Bad request"</span>,
+  <span class="key">"status"</span>:   <span class="num">400</span>,
+  <span class="key">"detail"</span>:   <span class="str">"One or more validation errors occurred"</span>,
+  <span class="key">"errors"</span>: [
+    {
+      <span class="key">"parameter"</span>: <span class="str">"processingAccounts[0].owners[0].identifiers[0].value"</span>,
+      <span class="key">"detail"</span>:    <span class="str">"Invalid format"</span>,
+      <span class="key">"message"</span>:  <span class="str">"National ID must contain digits only"</span>
+    }
+  ]
+}
+</div>
+      </div>
+
+      <ul class="checklist" id="cl-errors">
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="er1" data-section="errors">
+          <div class="check-content">
+            <span class="check-label">400 errors surfaced to operator with <code>errors[].parameter</code></span>
+            <span class="check-desc">Validation failures map back to specific fields; operator can correct and resubmit</span>
+          </div>
+          <span class="check-badge badge-get">REQ</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="er2" data-section="errors">
+          <div class="check-content">
+            <span class="check-label">409 idempotency conflict handled</span>
+            <span class="check-desc">On 409, checks whether the original boarding succeeded before re-POSTing with a fresh key</span>
+          </div>
+          <span class="check-badge badge-get">REQ</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="er3" data-section="errors">
+          <div class="check-content">
+            <span class="check-label">401 triggers token refresh</span>
+            <span class="check-desc">Expired token results in re-authentication, not a silent failure or infinite retry</span>
+          </div>
+          <span class="check-badge badge-get">REQ</span>
+        </li>
+      </ul>
+
+      <hr class="section-divider">
+      <label class="notes-label">Notes</label>
+      <textarea class="notes-area" id="notes-errors" placeholder="e.g. error logging approach, user-facing error messages, retry logic…"></textarea>
+    </div>
+  </div>
+
+  <!-- ── 5: Terminal Ordering (separate) ── -->
+  <div class="section" id="sec-terminal">
+    <div class="section-header" onclick="toggleSection('sec-terminal')">
+      <div class="section-number alt">5</div>
+      <div class="section-title">Terminal Ordering — Gateway_Payroc <span class="section-subtitle">— separate workflow</span></div>
+      <span class="section-progress" id="prog-terminal">0 / 5</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+
+      <div class="info-box teal">
+        <strong>Separate workflow.</strong> Terminal orders are submitted <em>after</em> the processing account reaches <code>approved</code> status (confirmed via <code>processingAccount.status.changed</code> webhook). The <code>Gateway_Payroc</code> solution template provisions a software gateway — no physical hardware ships.
+      </div>
+
+      <div class="endpoint-block">
+        <div class="endpoint-title">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">https://api.uat.payroc.com/v1/processing-accounts/{processingAccountId}/terminal-orders</span>
+        </div>
+        <div class="code-block">{
+  <span class="key">"trainingProvider"</span>: <span class="str">"partner"</span>,
+  <span class="key">"orderItems"</span>: [
+    {
+      <span class="key">"type"</span>:               <span class="str">"solution"</span>,
+      <span class="key">"solutionTemplateId"</span>: <span class="str">"Gateway_Payroc"</span>,
+      <span class="key">"solutionQuantity"</span>:   <span class="num">1</span>,
+      <span class="key">"solutionSetup"</span>: {
+        <span class="key">"timezone"</span>:          <span class="str">"America/Chicago"</span>,
+        <span class="key">"industryTemplateId"</span>: <span class="str">"Retail"</span>,
+        <span class="key">"batchClosure"</span>: {
+          <span class="key">"batchCloseType"</span>: <span class="str">"automatic"</span>,
+          <span class="key">"batchCloseTime"</span>: <span class="str">"23:00"</span>
+        },
+        <span class="key">"tokenization"</span>: <span class="bool">true</span>,
+        <span class="key">"tips"</span>: { <span class="key">"enabled"</span>: <span class="bool">false</span> }
+      }
+    }
+  ]
+  <span class="cmt">// shipping omitted — Gateway_Payroc is software; no hardware ships</span>
+}
+</div>
+      </div>
+
+      
+
+      <hr class="section-divider">
+      <h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Read-back endpoints</h4>
+      <div class="two-col">
+        <div class="endpoint-block" style="margin:0">
+          <div class="endpoint-title">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/v1/processing-accounts/{id}/terminal-orders</span>
+          </div>
+          <div class="code-block" style="font-size:11px"><span class="cmt">// List orders — filter by status</span>
+<span class="cmt">// ?status=open|dispatched|fulfilled</span></div>
+        </div>
+        <div class="endpoint-block" style="margin:0">
+          <div class="endpoint-title">
+            <span class="method get">GET</span>
+            <span class="endpoint-path">/v1/terminal-orders/{terminalOrderId}</span>
+          </div>
+          <div class="code-block" style="font-size:11px"><span class="cmt">// Retrieve one order by ID</span>
+<span class="cmt">// Persist terminalOrderId from 201</span></div>
+        </div>
+      </div>
+
+      <ul class="checklist" style="margin-top:16px" id="cl-terminal">
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="te1" data-section="terminal">
+          <div class="check-content">
+            <span class="check-label">Terminal order triggered after account approval</span>
+            <span class="check-desc">Order submitted only after <code>processingAccount.status.changed</code> event with <code>status: "approved"</code></span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="te2" data-section="terminal">
+          <div class="check-content">
+            <span class="check-label"><code>Gateway_Payroc</code> template used in production</span>
+            <span class="check-desc"><code>VAR_Only_TSYS</code> acceptable in UAT; must be <code>Gateway_Payroc</code> in production</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="te3" data-section="terminal">
+          <div class="check-content">
+            <span class="check-label"><code>terminalOrderId</code> persisted from 201 response</span>
+            <span class="check-desc">Required for order status lookups; order starts <code>open</code></span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="te4" data-section="terminal">
+          <div class="check-content">
+            <span class="check-label">Idempotency key on terminal order request</span>
+            <span class="check-desc">UUID v4 in <code>Idempotency-Key</code> header; new UUID per distinct order; same UUID only for byte-identical retry</span>
+          </div>
+          <span class="check-badge badge-post">POST</span>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" class="check-cb" id="te5" data-section="terminal">
+          <div class="check-content">
+            <span class="check-label"><code>terminalOrder.status.changed</code> webhook handled</span>
+            <span class="check-desc">Order fulfilment tracked via webhook; no polling required</span>
+          </div>
+          <span class="check-badge badge-get">WBHK</span>
+        </li>
+      </ul>
+
+      <hr class="section-divider">
+      <label class="notes-label">Notes</label>
+      <textarea class="notes-area" id="notes-terminal" placeholder="e.g. deferred submission strategy, batchCloseTime for this ISV, industry template, tokenization requirements…"></textarea>
+    </div>
+  </div>
+
+  <!-- ── Sign-off ── -->
+  <div class="section" id="sec-signoff">
+    <div class="section-header" onclick="toggleSection('sec-signoff')">
+      <div class="section-number alt">✓</div>
+      <div class="section-title">Certification Sign-off</div>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <div class="two-col" style="gap:20px;margin-bottom:16px">
+        <div>
+          <label class="notes-label">UAT Test Date</label>
+          <input type="date" class="notes-area" id="so_uat_date" style="min-height:unset;padding:8px 12px;resize:none;">
+        </div>
+        <div>
+          <label class="notes-label">Production Go-Live Date</label>
+          <input type="date" class="notes-area" id="so_prod_date" style="min-height:unset;padding:8px 12px;resize:none;">
+        </div>
+        <div>
+          <label class="notes-label">Payroc SE Sign-off</label>
+          <input type="text" class="notes-area" id="so_se" style="min-height:unset;padding:8px 12px;resize:none;" placeholder="SE name">
+        </div>
+        <div>
+          <label class="notes-label">ISV Dev Lead Sign-off</label>
+          <input type="text" class="notes-area" id="so_dev" style="min-height:unset;padding:8px 12px;resize:none;" placeholder="Dev lead name">
+        </div>
+      </div>
+      <label class="notes-label">Production Pricing Intent IDs (provided by Payroc)</label>
+      <textarea class="notes-area" id="so_pids" placeholder="PI-XXXX — description
+PI-YYYY — description" style="min-height:80px"></textarea>
+      <label class="notes-label" style="margin-top:12px">Open items / blockers</label>
+      <textarea class="notes-area" id="so_open" placeholder="Any outstanding items before production go-live…" style="min-height:80px"></textarea>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ── Autosave bar (fixed, sits above summary bar) ── -->
+<div id="autosave-bar">
+  <div id="autosave-status">
+    <span id="autosave-dot" class="as-dot as-dot-off"></span>
+    <span id="autosave-label">Enable autosave to write changes directly to this file</span>
+  </div>
+  <button id="autosave-btn" onclick="enableFileAutosave()">Enable autosave to this file</button>
+</div>
+
+<!-- ── Summary bar ── -->
+<div id="summary-bar">
+  <div class="bar-group">
+    <div class="bar-stat"><div class="bar-dot dot-complete"></div><span id="bar-complete">0</span> complete</div>
+    <div class="bar-stat"><div class="bar-dot dot-total"></div><span id="bar-total">21</span> total</div>
+  </div>
+  <div style="font-size:13px;color:var(--gray)" id="bar-pct">0% certified</div>
+  <button id="cert-status-btn" onclick="printGuide()">Print / Export PDF</button>
+</div>
+
+<script>
+  // ── Section toggle ──────────────────────────────────────
+  function toggleSection(id) {
+    document.getElementById(id).classList.toggle('collapsed');
+    save();
+    scheduleFileWrite();
+  }
+
+  // ── Auto-save (localStorage) ───────────────────────────
+  const SAVE_KEY = 'payroc-cert-guide-v1';
+  let saveTimer = null;
+
+  function collectState() {
+    const state = {};
+    document.querySelectorAll('input[id]').forEach(el => {
+      state[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    document.querySelectorAll('textarea[id]').forEach(el => { state[el.id] = el.value; });
+    // Checklist checkboxes (may share IDs in browser-saved copies — use index as fallback)
+    document.querySelectorAll('.check-cb').forEach((cb, i) => {
+      const key = cb.id || `_cb_${i}`;
+      state[key] = cb.checked;
+    });
+    state._collapsed = [...document.querySelectorAll('.section.collapsed')].map(s => s.id);
+    return state;
+  }
+
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(collectState()));
+      showToast();
+    }, 400);
+  }
+
+  function load() {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    try {
+      const state = JSON.parse(raw);
+      // Restore text/date inputs and textareas
+      document.querySelectorAll('input[id]').forEach(el => {
+        if (el.id in state) {
+          if (el.type === 'checkbox') { el.checked = state[el.id]; syncCheckAttr(el); }
+          else el.value = state[el.id];
+        }
+      });
+      document.querySelectorAll('textarea[id]').forEach(el => {
+        if (el.id in state) el.value = state[el.id];
+      });
+      // Restore checklist checkboxes
+      document.querySelectorAll('.check-cb').forEach((cb, i) => {
+        const key = cb.id || `_cb_${i}`;
+        if (key in state) { cb.checked = state[key]; syncCheckAttr(cb); }
+      });
+      // Restore collapsed sections
+      (state._collapsed || []).forEach(id => {
+        const sec = document.getElementById(id);
+        if (sec) sec.classList.add('collapsed');
+      });
+    } catch (e) {}
+  }
+
+  // Keep the DOM `checked` attribute in sync so "Save Page As" preserves state
+  function syncCheckAttr(cb) {
+    if (cb.checked) cb.setAttribute('checked', '');
+    else cb.removeAttribute('checked');
+  }
+
+  function showToast() {
+    const t = document.getElementById('save-toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ── Progress tracking ──────────────────────────────────
+  const SECTIONS = {
+    auth:     { id: 'auth',     prog: 'prog-auth'     },
+    events:   { id: 'events',   prog: 'prog-events'   },
+    boarding: { id: 'boarding', prog: 'prog-boarding'  },
+    errors:   { id: 'errors',   prog: 'prog-errors'   },
+    terminal: { id: 'terminal', prog: 'prog-terminal'  },
+  };
+
+  function updateProgress() {
+    let totalAll = 0, doneAll = 0;
+
+    Object.values(SECTIONS).forEach(({ id, prog }) => {
+      const boxes = document.querySelectorAll(`.check-cb[data-section="${id}"]`);
+      const done  = [...boxes].filter(b => b.checked).length;
+      document.getElementById(prog).textContent = `${done} / ${boxes.length}`;
+      totalAll += boxes.length;
+      doneAll  += done;
+    });
+
+    document.getElementById('bar-complete').textContent = doneAll;
+    document.getElementById('bar-total').textContent = totalAll;
+    const pct = totalAll ? Math.round(doneAll / totalAll * 100) : 0;
+    document.getElementById('bar-pct').textContent = `${pct}% certified`;
+
+    // Update header badge
+    const badge = document.getElementById('cert-status-badge');
+    if (pct === 0) {
+      badge.className = 'status-badge not-started';
+      badge.textContent = '● Not Started';
+    } else if (pct === 100) {
+      badge.className = 'status-badge certified';
+      badge.textContent = '✓ Certified';
+    } else {
+      badge.className = 'status-badge in-progress';
+      badge.textContent = `◐ In Progress — ${pct}%`;
+    }
+  }
+
+  // ── File System autosave ───────────────────────────────
+  let fileHandle = null;
+  let fileWriteTimer = null;
+
+  async function enableFileAutosave() {
+    if (!('showSaveFilePicker' in window)) {
+      alert('File System Access API is not supported in this browser. Use Chrome or Edge.');
+      return;
+    }
+    try {
+      fileHandle = await window.showSaveFilePicker({
+        suggestedName: 'Payroc ISV Certification Guide.html',
+        types: [{ description: 'HTML file', accept: { 'text/html': ['.html'] } }],
+      });
+      setAutosaveActive();
+      await writeToFile(); // immediate first write
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('File picker error:', e);
+    }
+  }
+
+  function setAutosaveActive() {
+    document.getElementById('autosave-dot').className   = 'as-dot as-dot-active';
+    document.getElementById('autosave-label').textContent = 'Autosave enabled — saving to file as you type';
+    const btn = document.getElementById('autosave-btn');
+    btn.textContent = 'Change file';
+    btn.disabled = false;
+  }
+
+  async function writeToFile() {
+    if (!fileHandle) return;
+    // Sync all checkbox attributes before serialising
+    document.querySelectorAll('.check-cb').forEach(syncCheckAttr);
+    // Also sync all named inputs into their value attributes for textarea
+    document.querySelectorAll('textarea[id]').forEach(el => {
+      el.textContent = el.value;
+    });
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    try {
+      document.getElementById('autosave-dot').className = 'as-dot as-dot-saving';
+      const writable = await fileHandle.createWritable();
+      await writable.write(html);
+      await writable.close();
+      document.getElementById('autosave-dot').className = 'as-dot as-dot-active';
+    } catch (e) {
+      console.error('File write error:', e);
+      document.getElementById('autosave-dot').className = 'as-dot as-dot-off';
+      document.getElementById('autosave-label').textContent = 'Write failed — check file permissions';
+    }
+  }
+
+  function scheduleFileWrite() {
+    if (!fileHandle) return;
+    clearTimeout(fileWriteTimer);
+    fileWriteTimer = setTimeout(writeToFile, 600);
+  }
+
+  // ── Print ──────────────────────────────────────────────
+  function printGuide() {
+    // Expand all sections before printing
+    document.querySelectorAll('.section.collapsed').forEach(s => s.classList.remove('collapsed'));
+    window.print();
+  }
+
+  // ── Wire events ───────────────────────────────────────
+  document.querySelectorAll('input, textarea, select').forEach(el => {
+    el.addEventListener('input', () => { updateProgress(); save(); scheduleFileWrite(); });
+    el.addEventListener('change', () => {
+      if (el.type === 'checkbox') syncCheckAttr(el);
+      updateProgress();
+      save();
+      scheduleFileWrite();
+    });
+  });
+
+  // ── Init ──────────────────────────────────────────────
+  load();
+  updateProgress();
+</script>
+
+<style>
+@media print {
+  body { background: #fff; font-size: 12px; }
+  #summary-bar, #save-toast, #autosave-bar { display: none !important; }
+  .container { padding-bottom: 20px; }
+  .section { break-inside: avoid; }
+  header::after { display: none; }
+  .check-item:has(.check-cb:checked) { border-color: #00A888; background: #F0FBF8; }
+  .code-block { color: #1a1a2e; background: #F4F6FA; }
+  .code-block .key  { color: #1D4ED8; }
+  .code-block .str  { color: #065F46; }
+  .code-block .num  { color: #991B1B; }
+  .code-block .cmt  { color: #94A3B8; }
+  .code-block .bool { color: #7C3AED; }
+}
+</style>
+
+
+</body></html>
