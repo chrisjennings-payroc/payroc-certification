@@ -6,7 +6,7 @@
 <meta name="cert-template-version" content="0.1.0">
 <title>Certification Script | Payroc</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#001D4E; --blue:#0051C2; --blue-mid:#0043A3; --teal:#00E0B8; --green:#00A888; --gray:#BFBFBF;
@@ -76,8 +76,12 @@
   .sig-card{border:1px solid var(--border); border-radius:12px; padding:14px 16px;}
   .sig-card h3{margin:0 0 8px; font-size:15px;}
   .sig-label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin:10px 0 4px;}
-  .sig-pad{width:100%; height:150px; border:1px dashed var(--blue); border-radius:10px; background:#fff; touch-action:none; cursor:crosshair; display:block;}
-  .sig-signed img{max-width:100%; height:100px; object-fit:contain; border:1px solid var(--border); border-radius:10px; background:#fff; display:block; margin-bottom:4px;}
+  .sig-tabs{display:inline-flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:6px;}
+  .sig-tabs button{border:none; background:#fff; padding:4px 14px; font:inherit; font-size:12px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+  .sig-tabs button.on{background:var(--blue); color:#fff;}
+  .sig-preview{height:70px; display:flex; align-items:center; padding:0 14px; border:1px dashed var(--blue); border-radius:10px; background:#fff; font-family:'Dancing Script','Snell Roundhand','Brush Script MT','Segoe Script',cursive; font-size:38px; color:var(--navy); overflow:hidden; white-space:nowrap;}
+  .sig-pad{width:100%; height:90px; border:1px dashed var(--blue); border-radius:10px; background:#fff; touch-action:none; cursor:crosshair; display:block;}
+  .sig-signed img{max-width:100%; height:70px; object-fit:contain; border:1px solid var(--border); border-radius:10px; background:#fff; display:block; margin-bottom:4px;}
   .tool-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin:0 0 16px;}
   .tool-card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; font-size:13.5px; color:var(--ink-soft);}
   .tool-card h3{margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--blue-mid);}
@@ -542,8 +546,14 @@ function certifiedDate() { var so = STATE.meta.signoff || {}; if (!so.payrocSig 
 function sigCard(who, title) {
   var so = STATE.meta.signoff || {}, sig = so[who + 'Sig'], at = so[who + 'At'], name = so[who + 'Name'] || '';
   var h = '<div class="sig-card" data-who="' + who + '"><h3>' + title + '</h3><div class="field"><label>Name</label><input data-bind="meta.signoff.' + who + 'Name" value="' + esc(name) + '"></div><label class="sig-label">Signature</label>';
+  var mode = so[who + 'Mode'] || 'type';
   if (sig) h += '<div class="sig-signed"><img alt="Signature" src="' + esc(sig) + '"><div class="small-note">Signed by ' + esc(name || 'name not entered') + ' on ' + esc(new Date(at).toLocaleString()) + '</div><button class="btn secondary small" data-action="sig-clear">Clear signature</button></div>';
-  else h += '<canvas class="sig-pad" width="560" height="160" data-sig="' + who + '"></canvas><div class="small-note">Sign with your mouse, trackpad or finger.</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn secondary small" data-action="sig-reset">Clear</button><button class="btn small" data-action="sig-apply">Apply signature</button></div>';
+  else {
+    h += '<div class="sig-tabs"><button class="' + (mode === 'type' ? 'on' : '') + '" data-action="sig-mode" data-mode="type">Type</button><button class="' + (mode === 'draw' ? 'on' : '') + '" data-action="sig-mode" data-mode="draw">Draw</button></div>';
+    if (mode === 'type') h += '<div class="sig-preview" data-sig-preview>' + esc(name) + '</div><div class="small-note">Your typed name is converted to a signature.</div>';
+    else h += '<canvas class="sig-pad" width="560" height="120" data-sig="' + who + '"></canvas><div class="small-note">Sign with your mouse, trackpad or finger.</div>';
+    h += '<div style="display:flex;gap:8px;margin-top:6px">' + (mode === 'draw' ? '<button class="btn secondary small" data-action="sig-reset">Clear</button>' : '') + '<button class="btn small" data-action="sig-apply">Apply signature</button></div>';
+  }
   return h + '</div>';
 }
 function signoffHtml() {
@@ -932,6 +942,7 @@ document.addEventListener('input', function (ev) {
   var t = ev.target, card = cardOf(t);
   if (t.matches('[data-bind]')) {
     var p = t.getAttribute('data-bind'); setPath(STATE, p, t.value);
+    var sm = /^meta\.signoff\.(\w+)Name$/.exec(p); if (sm) { var pv = $('.sig-card[data-who="' + sm[1] + '"] [data-sig-preview]'); if (pv) pv.textContent = t.value; }
     if (p === 'meta.partner') { $('#title-partner').textContent = t.value || 'Partner'; $$('[data-partner-label]').forEach(function (n) { n.textContent = t.value || 'Partner'; }); }
     if (p === 'meta.projectNumber') { $$('.scn').forEach(refreshRequest); renderSplunk(); }
     if (p === 'meta.splunkTemplate') renderSplunk();
@@ -1003,11 +1014,22 @@ function importSD(name, md) {
     var a = e.target.closest && e.target.closest('[data-action^="sig-"]'); if (!a) return;
     var act = a.getAttribute('data-action'), card = a.closest('.sig-card'), who = card.getAttribute('data-who'), so = STATE.meta.signoff = STATE.meta.signoff || {};
     if (act === 'sig-reset') { var c = $('canvas.sig-pad', card); c.getContext('2d').clearRect(0, 0, c.width, c.height); delete c.dataset.dirty; }
+    if (act === 'sig-mode') { so[who + 'Mode'] = a.getAttribute('data-mode'); rerenderSignoff(); return; }
     if (act === 'sig-apply') {
-      var cv = $('canvas.sig-pad', card);
-      if (!(so[who + 'Name'] || '').trim()) { toast('Enter the name first'); return; }
-      if (!cv.dataset.dirty) { toast('Draw a signature first'); return; }
-      so[who + 'Sig'] = cv.toDataURL('image/png'); so[who + 'At'] = new Date().toISOString(); rerenderSignoff();
+      var cv = $('canvas.sig-pad', card), nm = (so[who + 'Name'] || '').trim();
+      if (!nm) { toast('Enter the name first'); return; }
+      if (cv) {
+        if (!cv.dataset.dirty) { toast('Draw a signature first'); return; }
+        so[who + 'Sig'] = cv.toDataURL('image/png'); so[who + 'At'] = new Date().toISOString(); rerenderSignoff();
+      } else {
+        var FONT = '"Dancing Script","Snell Roundhand","Brush Script MT","Segoe Script",cursive';
+        (document.fonts && document.fonts.load ? document.fonts.load('64px "Dancing Script"', nm).catch(function () { }) : Promise.resolve()).then(function () {
+          var c2 = document.createElement('canvas'); c2.width = 560; c2.height = 140; var x = c2.getContext('2d');
+          var size = 72; x.font = size + 'px ' + FONT; while (x.measureText(nm).width > 520 && size > 24) { size -= 4; x.font = size + 'px ' + FONT; }
+          x.fillStyle = '#001D4E'; x.textBaseline = 'middle'; x.fillText(nm, 20, 72);
+          so[who + 'Sig'] = c2.toDataURL('image/png'); so[who + 'At'] = new Date().toISOString(); rerenderSignoff();
+        });
+      }
     }
     if (act === 'sig-clear') { delete so[who + 'Sig']; delete so[who + 'At']; rerenderSignoff(); }
   });
