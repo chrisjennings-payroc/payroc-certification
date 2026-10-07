@@ -17,7 +17,7 @@ python3 payroc-certification/skills/create-certification-script/scripts/build-ce
 ## Install (Payroc SEs and certifiers)
 
 ```text
-/plugin marketplace add <github-org>/payroc-certification
+/plugin marketplace add chrisjennings-payroc/payroc-certification
 /plugin install payroc-certification@payroc-certification-toolkit
 ```
 Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURITY.md](docs/SECURITY.md) if your organisation restricts marketplaces.
