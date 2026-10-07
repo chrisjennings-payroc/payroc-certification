@@ -72,6 +72,12 @@
   .btn:hover{background:var(--blue-mid);}
   .btn.secondary{background:#fff; color:var(--blue);} .btn.secondary:hover{background:var(--info-bg);}
   .btn.small{padding:4px 10px; font-size:12px;}
+  .sig-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:14px;}
+  .sig-card{border:1px solid var(--border); border-radius:12px; padding:14px 16px;}
+  .sig-card h3{margin:0 0 8px; font-size:15px;}
+  .sig-label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin:10px 0 4px;}
+  .sig-pad{width:100%; height:150px; border:1px dashed var(--blue); border-radius:10px; background:#fff; touch-action:none; cursor:crosshair; display:block;}
+  .sig-signed img{max-width:100%; height:100px; object-fit:contain; border:1px solid var(--border); border-radius:10px; background:#fff; display:block; margin-bottom:4px;}
   .tool-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin:0 0 16px;}
   .tool-card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; font-size:13.5px; color:var(--ink-soft);}
   .tool-card h3{margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--blue-mid);}
@@ -174,7 +180,7 @@
     .masthead{background:var(--navy) !important; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
     .scn-body{display:block !important;} .scn{break-inside:avoid;}
   }
-  @media (max-width:860px){.tool-grid{grid-template-columns:1fr;} .layout{grid-template-columns:1fr;} nav.toc{position:relative; height:auto;} .meta-grid{grid-template-columns:1fr 1fr;} .dash{grid-template-columns:repeat(3,1fr);} .evgrid{grid-template-columns:1fr;} .span2,.span3{grid-column:span 1;}}
+  @media (max-width:860px){.sig-grid{grid-template-columns:1fr;} .tool-grid{grid-template-columns:1fr;} .layout{grid-template-columns:1fr;} nav.toc{position:relative; height:auto;} .meta-grid{grid-template-columns:1fr 1fr;} .dash{grid-template-columns:repeat(3,1fr);} .evgrid{grid-template-columns:1fr;} .span2,.span3{grid-column:span 1;}}
 </style>
 </head>
 <body data-mode="partner">
@@ -530,6 +536,23 @@ function excludedHtml() {
   return '<details class="fold"><summary>' + ex.length + ' scenarios not in this script (click to review / add back)</summary><ul class="excluded-list">' + (li || '<li>None.</li>') + '</ul></details>';
 }
 
+// ===== Sign-off: typed name + drawn signature (electronic signature; not a cryptographic/certified signature) =====
+function signedDay(iso) { var d = new Date(iso); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+function certifiedDate() { var so = STATE.meta.signoff || {}; if (!so.payrocSig || !so.partnerSig) return ''; return signedDay(new Date(Math.max(new Date(so.payrocAt), new Date(so.partnerAt))).toISOString()); }
+function sigCard(who, title) {
+  var so = STATE.meta.signoff || {}, sig = so[who + 'Sig'], at = so[who + 'At'], name = so[who + 'Name'] || '';
+  var h = '<div class="sig-card" data-who="' + who + '"><h3>' + title + '</h3><div class="field"><label>Name</label><input data-bind="meta.signoff.' + who + 'Name" value="' + esc(name) + '"></div><label class="sig-label">Signature</label>';
+  if (sig) h += '<div class="sig-signed"><img alt="Signature" src="' + esc(sig) + '"><div class="small-note">Signed by ' + esc(name || 'name not entered') + ' on ' + esc(new Date(at).toLocaleString()) + '</div><button class="btn secondary small" data-action="sig-clear">Clear signature</button></div>';
+  else h += '<canvas class="sig-pad" width="560" height="160" data-sig="' + who + '"></canvas><div class="small-note">Sign with your mouse, trackpad or finger.</div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn secondary small" data-action="sig-reset">Clear</button><button class="btn small" data-action="sig-apply">Apply signature</button></div>';
+  return h + '</div>';
+}
+function signoffHtml() {
+  var pn = STATE.meta.partner || 'Partner';
+  return '<section class="sec" id="signoff"><h2>Certification sign-off</h2><div class="card"><div class="field" style="max-width:260px"><label>Certified date</label><input id="certified-date" readonly value="' + esc(certifiedDate()) + '" placeholder="Filled in when both parties have signed"></div>' +
+    '<div class="sig-grid">' + sigCard('payroc', 'Payroc representative') + sigCard('partner', '<span data-partner-label>' + esc(pn) + '</span> representative') + '</div></div></section>';
+}
+function rerenderSignoff() { var el = $('#signoff'); if (el) el.outerHTML = signoffHtml(); autosave.schedule(); }
+
 function render() {
   initState();
   renderMasthead();
@@ -558,9 +581,7 @@ function render() {
   groups.forEach(function (g) { app.push(sectionHtml(g)); });
   app.push('<section class="sec" id="blockers"><h2>Blockers &amp; follow-ups</h2><div id="blockers-body">' + blockersHtml() + '</div><button class="btn secondary small" data-action="add-manual">+ Add item</button></section>');
   app.push('<section class="sec reviewer-only" id="reviewer-tools"><h2>Payroc reviewer: log lookup</h2><p class="small-note">Search each Test Tag in Splunk, then tick &ldquo;Verified in logs&rdquo; on the scenario. Set the index/field once in the query template.</p><div class="field"><label>Search template (use {tag})</label><input data-bind="meta.splunkTemplate" value="' + esc(STATE.meta.splunkTemplate) + '"></div><div id="splunk-body"></div></section>');
-  app.push('<section class="sec" id="signoff"><h2>Certification sign-off</h2><div class="card"><div class="evgrid">' +
-    ['uatDate|UAT certified date|date', 'prodDate|Production go-live date|date', 'se|Payroc SE', 'dev|Partner dev lead'].map(function (x) { var p = x.split('|'); return '<div class="field"><label>' + p[1] + '</label><input type="' + (p[2] || 'text') + '" data-bind="meta.signoff.' + p[0] + '" value="' + esc(getPath(STATE, 'meta.signoff.' + p[0])) + '"></div>'; }).join('') +
-    '<div class="field span3"><label>Production pricing intent IDs / other production identifiers</label><textarea rows="2" data-bind="meta.signoff.pids">' + esc(getPath(STATE, 'meta.signoff.pids')) + '</textarea></div><div class="field span3"><label>Open items / blockers</label><textarea rows="3" data-bind="meta.signoff.open">' + esc(getPath(STATE, 'meta.signoff.open')) + '</textarea></div></div></div></section>');
+  app.push(signoffHtml());
   $('#app').innerHTML = app.join('');
   $('#mode').value = STATE.meta.mode; document.body.setAttribute('data-mode', STATE.meta.mode);
   renderToc(groups);
@@ -643,7 +664,7 @@ function certToMarkdown() {
   L.push('verified_in_logs: ' + c.verified);
   L.push('pending_confirmation: ' + JSON.stringify((CATALOG.flags || []).map(function (f) { return f.id; })));
   L.push('---', '');
-  L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; where `identify_by` is `test_tag`, use the `test_tag` value exactly as written in the request field named by `tag_field`; where it is `idempotency_key`, send a fresh UUID v4 in the Idempotency-Key header and record it in `idempotency_key` (the UUID is what Payroc searches for); never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.', '');
+  L.push('> **For AI agents and tools:** this file is the machine-readable twin of the HTML Certification Script. Each `cert:scenario` marker (an HTML comment before each ### heading) starts one UAT test Payroc will verify in its logs. You may help fill in the evidence lines (`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. Rules: keep ids and markers unchanged; where `identify_by` is `test_tag`, use the `test_tag` value exactly as written in the request field named by `tag_field`; where it is `idempotency_key`, send a fresh UUID v4 in the Idempotency-Key header and record it in `idempotency_key` (the UUID is what Payroc searches for); never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets; never sign on anyone\'s behalf (signatures are captured only in the HTML file).', '');
   L.push('> **Pending confirmation:** ' + (CATALOG.flags || []).map(function (f) { return f.text; }).join(' '), '');
   L.push('# ' + (m.partner || 'Partner') + ' - Certification Script', '');
   includedBySection().forEach(function (g) {
@@ -677,8 +698,9 @@ function certToMarkdown() {
   if (!any) L.push('None.');
   L.push('', '<!-- cert:section=signoff -->', '## Sign-off', '');
   var so = m.signoff || {};
-  L.push('- uat_certified_date: ' + (so.uatDate || '')); L.push('- production_go_live_date: ' + (so.prodDate || '')); L.push('- payroc_se: ' + (so.se || '')); L.push('- partner_dev_lead: ' + (so.dev || ''));
-  L.push('- production_identifiers: ' + (so.pids ? JSON.stringify(so.pids) : '')); L.push('- open_items: ' + (so.open ? JSON.stringify(so.open) : ''), '');
+  L.push('- certified_date: ' + certifiedDate());
+  L.push('- payroc_representative_name: ' + (so.payrocName || '')); L.push('- payroc_representative_signed_at: ' + (so.payrocSig ? so.payrocAt : ''));
+  L.push('- partner_representative_name: ' + (so.partnerName || '')); L.push('- partner_representative_signed_at: ' + (so.partnerSig ? so.partnerAt : ''), '');
   return L.join('\n');
 }
 function unq(v) { v = (v || '').trim(); if (v[0] === '"') { try { return JSON.parse(v); } catch (e) { } } return v; }
@@ -769,9 +791,12 @@ function buildPdf() {
   STATE.manual.forEach(function (x) { any = true; para('Manual [' + x.status + '] ' + x.text, 9, false, [11, 18, 32], 8); });
   if (!any) para('None.', 9, false, [75, 85, 102], 8);
   var so = m.signoff || {};
-  need(90); y += 10; para('Sign-off', 13, true, [0, 29, 78]);
-  para('UAT certified: ' + (so.uatDate || '-') + '   Production go-live: ' + (so.prodDate || '-') + '   Payroc SE: ' + (so.se || '-') + '   Partner dev lead: ' + (so.dev || '-'), 9);
-  if (so.pids) para('Production identifiers: ' + so.pids, 9); if (so.open) para('Open items: ' + so.open, 9);
+  need(200); y += 10; para('Sign-off', 13, true, [0, 29, 78]);
+  para('Certified date: ' + (certifiedDate() || '-'), 9);
+  [['payroc', 'Payroc representative'], ['partner', (m.partner || 'Partner') + ' representative']].forEach(function (pr) {
+    need(110); para(pr[1] + ': ' + (so[pr[0] + 'Name'] || '-') + (so[pr[0] + 'Sig'] ? '   (signed ' + new Date(so[pr[0] + 'At']).toLocaleString() + ')' : '   (not signed)'), 9, true);
+    if (so[pr[0] + 'Sig']) { try { doc.addImage(so[pr[0] + 'Sig'], 'PNG', M, y, 200, 57); } catch (e) { } y += 64; } else y += 6;
+  });
   footer();
   return doc;
 }
@@ -907,7 +932,7 @@ document.addEventListener('input', function (ev) {
   var t = ev.target, card = cardOf(t);
   if (t.matches('[data-bind]')) {
     var p = t.getAttribute('data-bind'); setPath(STATE, p, t.value);
-    if (p === 'meta.partner') $('#title-partner').textContent = t.value || 'Partner';
+    if (p === 'meta.partner') { $('#title-partner').textContent = t.value || 'Partner'; $$('[data-partner-label]').forEach(function (n) { n.textContent = t.value || 'Partner'; }); }
     if (p === 'meta.projectNumber') { $$('.scn').forEach(refreshRequest); renderSplunk(); }
     if (p === 'meta.splunkTemplate') renderSplunk();
     autosave.schedule(); return;
@@ -961,6 +986,32 @@ function importSD(name, md) {
   STATE.manualInclude = {}; render(); autosave.schedule();
   toast('Script tailored: ' + STATE.tailor.included.length + ' scenarios in scope');
 }
+
+
+// signature pads
+(function () {
+  var drawing = null;
+  function pos(c, e) { var r = c.getBoundingClientRect(); return [(e.clientX - r.left) * c.width / r.width, (e.clientY - r.top) * c.height / r.height]; }
+  document.addEventListener('pointerdown', function (e) {
+    var c = e.target.closest && e.target.closest('canvas.sig-pad'); if (!c) return;
+    drawing = c; try { c.setPointerCapture(e.pointerId); } catch (err) { } var x = c.getContext('2d'), p = pos(c, e);
+    x.lineWidth = 2.5; x.lineCap = 'round'; x.lineJoin = 'round'; x.strokeStyle = '#001D4E'; x.beginPath(); x.moveTo(p[0], p[1]); x.lineTo(p[0] + 0.1, p[1] + 0.1); x.stroke(); c.dataset.dirty = '1'; e.preventDefault();
+  });
+  document.addEventListener('pointermove', function (e) { if (!drawing) return; var x = drawing.getContext('2d'), p = pos(drawing, e); x.lineTo(p[0], p[1]); x.stroke(); });
+  document.addEventListener('pointerup', function () { drawing = null; });
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('[data-action^="sig-"]'); if (!a) return;
+    var act = a.getAttribute('data-action'), card = a.closest('.sig-card'), who = card.getAttribute('data-who'), so = STATE.meta.signoff = STATE.meta.signoff || {};
+    if (act === 'sig-reset') { var c = $('canvas.sig-pad', card); c.getContext('2d').clearRect(0, 0, c.width, c.height); delete c.dataset.dirty; }
+    if (act === 'sig-apply') {
+      var cv = $('canvas.sig-pad', card);
+      if (!(so[who + 'Name'] || '').trim()) { toast('Enter the name first'); return; }
+      if (!cv.dataset.dirty) { toast('Draw a signature first'); return; }
+      so[who + 'Sig'] = cv.toDataURL('image/png'); so[who + 'At'] = new Date().toISOString(); rerenderSignoff();
+    }
+    if (act === 'sig-clear') { delete so[who + 'Sig']; delete so[who + 'At']; rerenderSignoff(); }
+  });
+})();
 
 window.__cert = { tailor: tailor, parseSD: parseSD, certToMarkdown: certToMarkdown, importResultsMd: importResultsMd, getState: function () { return STATE; }, parsePaste: parsePaste, redact: redact, serialize: autosave.serialize, buildPdf: buildPdf, importResultsFile: importResultsFile, importSD: importSD };
 render();

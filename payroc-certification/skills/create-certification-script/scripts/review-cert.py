@@ -67,6 +67,7 @@ def main(argv):
             problems.append("%s is %s but has no reason" % (sid, r["status"]))
     scan = html.split('id="cert-catalog"')[0] + (html.split('id="cert-state">')[1] if 'id="cert-state">' in html else "") + "\n" + md
     scan = re.sub(r"<script>/\*\*.*?</script>", "", scan, flags=re.S)  # skip vendored library
+    scan = re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", scan)  # signature images
     for rx, label in CRED:
         for mm in rx.finditer(scan):
             problems.append("possible %s: %s..." % (label, mm.group(0)[:12]))
