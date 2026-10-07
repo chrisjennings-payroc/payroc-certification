@@ -291,7 +291,7 @@ function tailor(catalog, sd) {
       }
     });
   });
-  if (sd && sd.sections['worldnet-sdks'] && sd.sections['worldnet-sdks'].inScope) res.notes.push('SD scopes Worldnet SDKs / POS plugins / GoChip. These are outside this certification script and are not tested here.');
+  if (sd && ['worldnet-sdks', 'gochip'].some(function (k) { return sd.sections[k] && sd.sections[k].inScope; })) res.notes.push('SD scopes Worldnet SDKs / POS plugins / GoChip. These are outside this certification script and are not tested here.');
   return res;
 }
 // </tailor>

@@ -189,7 +189,8 @@ def tailor(catalog, sd):
                 res["included"].append(sc["id"])
                 if sd and sc.get("tier") == "required" and sc.get("endpoints") and optional_endpoint(info["text"], sc["endpoints"][0].get("path")):
                     res["tierOverride"][sc["id"]] = "recommended"
-    if sd and sd["sections"].get("worldnet-sdks", {}).get("inScope"):
+    # "gochip" is the pre-0.2 SD id for the Worldnet SDKs/POS section
+    if sd and any(sd["sections"].get(k, {}).get("inScope") for k in ("worldnet-sdks", "gochip")):
         res["notes"].append("SD scopes Worldnet SDKs / POS plugins / GoChip. These are outside this certification script and are not tested here.")
     return res
 

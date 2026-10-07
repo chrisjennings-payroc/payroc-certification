@@ -147,5 +147,21 @@ class ParityTests(unittest.TestCase):
             self.assertEqual(py["sections"], js["sections"], fx)
 
 
+@unittest.skipUnless(os.environ.get("CERT_REAL_SD_DIR"), "set CERT_REAL_SD_DIR to a folder of real SD .md files (not committed: partner data)")
+class RealSDTests(unittest.TestCase):
+    def test_real_sds_tailor_sensibly(self):
+        catalog = certlib.load_catalog()
+        d = os.environ["CERT_REAL_SD_DIR"]
+        files = [f for f in os.listdir(d) if f.endswith(".md")]
+        self.assertTrue(files)
+        for f in files:
+            with open(os.path.join(d, f), encoding="utf-8") as fh:
+                sd = certlib.parse_sd(fh.read())
+            self.assertTrue(sd["sections"], f)
+            t = certlib.tailor(catalog, sd)
+            self.assertGreater(len(t["included"]), 10, f)
+            self.assertLess(len(t["included"]), 186, f)
+
+
 if __name__ == "__main__":
     unittest.main()
