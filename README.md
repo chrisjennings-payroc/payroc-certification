@@ -20,7 +20,7 @@ python3 payroc-certification/skills/create-certification-script/scripts/build-ce
 /plugin marketplace add chrisjennings-payroc/payroc-certification
 /plugin install payroc-certification@payroc-certification-toolkit
 ```
-Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURITY.md](docs/SECURITY.md) if your organisation restricts marketplaces.
+Local checkout: `/plugin marketplace add ./` from this folder. See [docs/SECURITY_payroc.md](docs/SECURITY_payroc.md) if your organisation restricts marketplaces.
 
 ## Use
 

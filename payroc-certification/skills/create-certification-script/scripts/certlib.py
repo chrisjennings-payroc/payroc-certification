@@ -270,7 +270,7 @@ NOTICE = ("> **For AI agents and tools:** this file is the machine-readable twin
           "(`http_status`, `timestamp_utc`, `idempotency_key`, `resource_id`, `correlation_id`, `status`, `notes`) from real test runs only. "
           "Rules: keep ids and markers unchanged; where `identify_by` is `test_tag`, use the `test_tag` value exactly as written in the request field named by `tag_field`; where it is `idempotency_key`, send a fresh UUID v4 in the Idempotency-Key header and record it in `idempotency_key` (the UUID is what Payroc searches for); "
           "never invent results, ids or timestamps - leave unknown fields empty; set `status` to one of `not_run | pass | fail | blocked | "
-          "follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets.")
+          "follow_up | na` and give a `reason` for blocked/follow_up; never include real card numbers, API keys or secrets; never sign on anyone's behalf (signatures are captured only in the HTML file).")
 
 
 def render_md(catalog, state):
@@ -323,8 +323,9 @@ def render_md(catalog, state):
     L += ["<!-- cert:section=blockers -->", "## Blockers & follow-ups", ""]
     fus = state["tailor"].get("followUps") or []
     L += ["- SD [Needs follow-up] " + f["text"] for f in fus] or ["None."]
-    L += ["", "<!-- cert:section=signoff -->", "## Sign-off", "", "- uat_certified_date: ", "- production_go_live_date: ",
-          "- payroc_se: ", "- partner_dev_lead: ", "- production_identifiers: ", "- open_items: ", ""]
+    L += ["", "<!-- cert:section=signoff -->", "## Sign-off", "", "- certified_date: ", "- payroc_representative_name: ",
+          "- payroc_representative_title: ", "- payroc_representative_signed_at: ", "- partner_representative_name: ",
+          "- partner_representative_title: ", "- partner_representative_signed_at: ", ""]
     return "\n".join(L)
 
 
